@@ -249,7 +249,14 @@ if [ "${lightning}" == "cl" ]; then
  if [ ${#ln_port} -eq 0 ]; then
    ln_port=$(echo "${ln_getInfo}" | grep '"port":' | cut -d: -f2 | tail -1 | bc)
  fi
- wallet_unlocked=0 #TODO
+
+ wallet_unlocked=0 
+ if [ $(echo "${ln_getInfo}" | grep -c '"id":') -eq 0 ];then
+  if [ "$(sudo journalctl -n5 -u ${netprefix}lightningd | \
+    grep -cE 'Could not read pass from stdin|pass the --encrypted-hsm|Wrong password')" -eq 0 ];then
+    wallet_unlocked=1
+  fi
+ fi
  if [ "$wallet_unlocked" -gt 0 ] ; then
   ln_alias="Wallet Locked"
  else
@@ -271,6 +278,7 @@ if [ "${lightning}" == "cl" ]; then
      ln_publicColor="${color_red}"
    fi
   fi
+  
   BLOCKHEIGHT=$(echo "$blockchaininfo"|grep blocks|awk '{print $2}'|cut -d, -f1)
   CLHEIGHT=$(echo "${ln_getInfo}" | jq .blockheight)
   if [ "$BLOCKHEIGHT" == "$CLHEIGHT" ];then
