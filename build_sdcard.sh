@@ -195,7 +195,7 @@ echo "*** Adding Tor Sources to sources.list ***"
 torSourceListAvailable=$(sudo grep -c 'https://deb.torproject.org/torproject.org' /etc/apt/sources.list)
 echo "torSourceListAvailable=${torSourceListAvailable}"  
 if [ ${torSourceListAvailable} -eq 0 ]; then
-  echo "- adding TOR sources ..."
+  echo "- adding Tor sources ..."
   if [ "${baseimage}" = "raspbian" ] || [ "${baseimage}" = "raspios_arm64" ] || \
      [ "${baseimage}" = "armbian" ] || [ "${baseimage}" = "dietpi" ] || [ "${baseimage}" = "debian" ]; then
     echo "- using https://deb.torproject.org/torproject.org bullseye"
@@ -211,7 +211,7 @@ if [ ${torSourceListAvailable} -eq 0 ]; then
   fi
   echo "- OK sources added"
 else
-  echo "TOR sources are available"
+  echo "Tor sources are available"
 fi
 
 echo "*** Install & Enable Tor ***"
