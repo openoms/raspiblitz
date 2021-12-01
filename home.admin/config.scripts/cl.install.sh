@@ -103,8 +103,8 @@ if [ "$1" = "install" ]; then
     libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev \
     gettext unzip
   
-  sudo -u admin unzip clightning-v${CLVERSION}.zip
-  cd clightning-v${CLVERSION} || exit 1
+  sudo -u admin unzip clightning-${CLVERSION}.zip
+  cd clightning-${CLVERSION} || exit 1
   
   echo "- Configuring EXPERIMENTAL_FEATURES enabled"
   sudo -u admin ./configure --enable-experimental-features
