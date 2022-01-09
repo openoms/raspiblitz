@@ -160,35 +160,35 @@ echo ""
 # get the state of data drive
 source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
 
-################################
-# WAIT LOOP: HDD CONNECTED
-################################
-
-echo "Waiting for HDD/SSD ..." >> $logFile
-sudo ls -la /etc/ssh >> $logFile 
-until [ ${isMounted} -eq 1 ] || [ ${#hddCandidate} -gt 0 ]
-do
-
-  # recheck HDD/SSD
-  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
-  echo "isMounted: $isMounted" >> $logFile
-  echo "hddCandidate: $hddCandidate" >> $logFile
-
-  # in case of HDD analyse ERROR
-  if [ "${hddError}" != "" ]; then
-    echo "FAIL - error on HDD analysis: ${hddError}" >> $logFile
-    /home/admin/_cache.sh set state "errorHDD"
-    /home/admin/_cache.sh set message "${hddError}"
-  elif [ "${isMounted}" == "0" ] && [ "${hddCandidate}" == "" ]; then
-    /home/admin/_cache.sh set state "noHDD"
-    /home/admin/_cache.sh set message ">=1TB"
-  fi
-
-  # wait for next check
-  sleep 2
-
-done
-echo "HDD/SSD connected: ${hddCandidate}" >> $logFile
+# ################################
+# # WAIT LOOP: HDD CONNECTED
+# ################################
+# 
+# echo "Waiting for HDD/SSD ..." >> $logFile
+# sudo ls -la /etc/ssh >> $logFile 
+# until [ ${isMounted} -eq 1 ] || [ ${#hddCandidate} -gt 0 ]
+# do
+# 
+#   # recheck HDD/SSD
+#   source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
+#   echo "isMounted: $isMounted" >> $logFile
+#   echo "hddCandidate: $hddCandidate" >> $logFile
+# 
+#   # in case of HDD analyse ERROR
+#   if [ "${hddError}" != "" ]; then
+#     echo "FAIL - error on HDD analysis: ${hddError}" >> $logFile
+#     /home/admin/_cache.sh set state "errorHDD"
+#     /home/admin/_cache.sh set message "${hddError}"
+#   elif [ "${isMounted}" == "0" ] && [ "${hddCandidate}" == "" ]; then
+#     /home/admin/_cache.sh set state "noHDD"
+#     /home/admin/_cache.sh set message ">=1TB"
+#   fi
+# 
+#   # wait for next check
+#   sleep 2
+# 
+# done
+# echo "HDD/SSD connected: ${hddCandidate}" >> $logFile
 
 # write info for LCD
 /home/admin/_cache.sh set state "system-init"
@@ -223,26 +223,26 @@ fi
 # extend sd card to maximum capacity
 ################################
 
-source <(sudo /home/admin/config.scripts/blitz.bootdrive.sh status)
-if [ "${needsExpansion}" == "1" ] && [ "${fsexpanded}" == "0" ]; then
-  echo "FSEXPAND needed ... starting process" >> $logFile
-  sudo /home/admin/config.scripts/blitz.bootdrive.sh status >> $logFile
-  sudo /home/admin/config.scripts/blitz.bootdrive.sh fsexpand >> $logFile
-  systemInitReboot=1
-  /home/admin/_cache.sh set message "FSEXPAND"
-elif [ "${tooSmall}" == "1" ]; then
-  echo "!!! FAIL !!!!!!!!!!!!!!!!!!!!" >> $logFile
-  echo "SDCARD TOO SMALL 16G minimum" >> $logFile
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> $logFile
-  /home/admin/_cache.sh set state "sdtoosmall"
-  echo "System stopped. Please cut power." >> $logFile
-  sleep 6000
-  sudo shutdown -r now
-  slepp 100
-  exit 1
-else
+#source <(sudo /home/admin/config.scripts/blitz.bootdrive.sh status)
+#if [ "${needsExpansion}" == "1" ] && [ "${fsexpanded}" == "0" ]; then
+#  echo "FSEXPAND needed ... starting process" >> $logFile
+#  sudo /home/admin/config.scripts/blitz.bootdrive.sh status >> $logFile
+#  sudo /home/admin/config.scripts/blitz.bootdrive.sh fsexpand >> $logFile
+#  systemInitReboot=1
+#  /home/admin/_cache.sh set message "FSEXPAND"
+#elif [ "${tooSmall}" == "1" ]; then
+#  echo "!!! FAIL !!!!!!!!!!!!!!!!!!!!" >> $logFile
+#  echo "SDCARD TOO SMALL 16G minimum" >> $logFile
+#  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> $logFile
+#  /home/admin/_cache.sh set state "sdtoosmall"
+#  echo "System stopped. Please cut power." >> $logFile
+#  sleep 6000
+#  sudo shutdown -r now
+#  slepp 100
+#  exit 1
+#else
   echo "No FS EXPAND needed. needsExpansion(${needsExpansion}) fsexpanded(${fsexpanded})" >> $logFile
-fi
+#fi
 
 # now that HDD/SSD is connected ... if relevant data from a previous RaspiBlitz was available
 # /var/cache/raspiblitz/hdd-inspect exists with copy of config data to init system with
@@ -325,17 +325,17 @@ else
   echo "No DISPLAY RESTORE because no /var/cache/raspiblitz/hdd-inspect/raspiblitz.conf" >> $logFile
 fi
 
-################################
-# UASP FIX
-################################
-/home/admin/_cache.sh set message "checking HDD"
-source <(sudo /home/admin/config.scripts/blitz.datadrive.sh uasp-fix)
-if [ "${neededReboot}" == "1" ]; then
-  echo "UASP FIX applied ... reboot needed." >> $logFile
-  systemInitReboot=1
-else
-  echo "No UASP FIX needed" >> $logFile
-fi
+#################################
+## UASP FIX
+#################################
+#/home/admin/_cache.sh set message "checking HDD"
+#source <(sudo /home/admin/config.scripts/blitz.datadrive.sh uasp-fix)
+#if [ "${neededReboot}" == "1" ]; then
+#  echo "UASP FIX applied ... reboot needed." >> $logFile
+#  systemInitReboot=1
+#else
+#  echo "No UASP FIX needed" >> $logFile
+#fi
 
 ######################################
 # CHECK IF REBOOT IS NEEDED
@@ -405,31 +405,34 @@ echo "HDD already part of system: $isMounted" >> $logFile
 
 if [ ${isMounted} -eq 0 ]; then
 
-  # temp mount the HDD
-  echo "Temp mounting (1) data drive ($hddCandidate)" >> $logFile
-  if [ "${hddFormat}" != "btrfs" ]; then
-    source <(/home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
-  else
-    source <(/home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddCandidate})
-  fi
-  echo "Temp mounting (1) result: ${isMounted}" >> $logFile
+#  # temp mount the HDD
+#  echo "Temp mounting (1) data drive ($hddCandidate)" >> $logFile
+#  if [ "${hddFormat}" != "btrfs" ]; then
+#    source <(/home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
+#  else
+#    source <(/home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddCandidate})
+#  fi
+#  echo "Temp mounting (1) result: ${isMounted}" >> $logFile
+#
+#  # write data needed for setup process into raspiblitz.info
+#  /home/admin/_cache.sh set hddCandidate "${hddCandidate}"
+#  /home/admin/_cache.sh set hddGigaBytes "${hddGigaBytes}"
+#  /home/admin/_cache.sh set hddBlocksBitcoin "${hddBlocksBitcoin}"
+#  /home/admin/_cache.sh set hddBlocksLitecoin "${hddBlocksLitecoin}"
+#  /home/admin/_cache.sh set hddGotMigrationData "${hddGotMigrationData}"
+#  echo ""
+#  echo "HDD is there but not AutoMounted yet - Waiting for user Setup/Update" >> $logFile
+#
+#  # add some debug info to logfile
+#  echo "# df " >> ${logFile}
+#  df >> ${logFile}
+#  echo "# lsblk -o NAME,FSTYPE,LABEL " >> ${logFile}
+#  lsblk -o NAME,FSTYPE,LABEL >> ${logFile}
+#  echo "# /home/admin/config.scripts/blitz.datadrive.sh status"
+#  /home/admin/config.scripts/blitz.datadrive.sh status >> ${logFile}
 
-  # write data needed for setup process into raspiblitz.info
-  /home/admin/_cache.sh set hddCandidate "${hddCandidate}"
-  /home/admin/_cache.sh set hddGigaBytes "${hddGigaBytes}"
-  /home/admin/_cache.sh set hddBlocksBitcoin "${hddBlocksBitcoin}"
-  /home/admin/_cache.sh set hddBlocksLitecoin "${hddBlocksLitecoin}"
-  /home/admin/_cache.sh set hddGotMigrationData "${hddGotMigrationData}"
-  echo ""
-  echo "HDD is there but not AutoMounted yet - Waiting for user Setup/Update" >> $logFile
-
-  # add some debug info to logfile
-  echo "# df " >> ${logFile}
-  df >> ${logFile}
-  echo "# lsblk -o NAME,FSTYPE,LABEL " >> ${logFile}
-  lsblk -o NAME,FSTYPE,LABEL >> ${logFile}
-  echo "# /home/admin/config.scripts/blitz.datadrive.sh status"
-  /home/admin/config.scripts/blitz.datadrive.sh status >> ${logFile}
+  sudo /sbin/zfs load-key -a
+  sudo /sbin/zfs mount -la
 
   # determine correct setup phase
   infoMessage="Please Login for Setup"
@@ -467,16 +470,16 @@ if [ ${isMounted} -eq 0 ]; then
   until [ "${state}" == "waitprovision" ]
   do
 
-    # get fresh info about data drive (in case the hdd gets disconnected)
-    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
-    if [ "${hddCandidate}" == "" ]; then
-      /home/admin/config.scripts/blitz.error.sh _bootstrap.sh "lost-hdd" "Lost HDD connection .. triggering reboot." "happened during WAIT LOOP: USER SETUP/UPDATE/MIGRATION" ${logFile}
-      sleep 8
-      sudo shutdown -r now
-      sleep 100
-      exit 0
-    fi
-
+#     # get fresh info about data drive (in case the hdd gets disconnected)
+#     source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
+#     if [ "${hddCandidate}" == "" ]; then
+#       /home/admin/config.scripts/blitz.error.sh _bootstrap.sh "lost-hdd" "Lost HDD connection .. triggering reboot." "happened during WAIT LOOP: USER SETUP/UPDATE/MIGRATION" ${logFile}
+#       sleep 8
+#       sudo shutdown -r now
+#       sleep 100
+#       exit 0
+#     fi
+# 
     # detect if network get deconnected again (call directly instead of cache)
     # --> "removing network cable" can be used as signal to shutdown clean on test startup
     source <(/home/admin/config.scripts/internet.sh status local)
@@ -507,23 +510,23 @@ if [ ${isMounted} -eq 0 ]; then
   # mark system on sd card as in setup process
   echo "the provision process was started but did not finish yet" > /home/admin/provision.flag
 
-  # make sure HDD is mounted (could be freshly formatted by user on last loop)
-  source <(/home/admin/config.scripts/blitz.datadrive.sh status)
-  echo "Temp mounting (2) data drive ($hddCandidate)" >> ${logFile}
-  if [ "${hddFormat}" != "btrfs" ]; then
-    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
-  else
-    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddCandidate})
-  fi
-  echo "Temp mounting (2) result: ${isMounted}" >> ${logFile}
-
-  # check that HDD was temp mounted
-  if [ "${isMounted}" != "1" ]; then
-    sed -i "s/^state=.*/state=errorHDD/g" ${infoFile}
-    sed -i "s/^message=.*/message='Was not able to mount HDD (2)'/g" ${infoFile}
-    exit 1
-  fi
-
+#  # make sure HDD is mounted (could be freshly formatted by user on last loop)
+#  source <(/home/admin/config.scripts/blitz.datadrive.sh status)
+#  echo "Temp mounting (2) data drive ($hddCandidate)" >> ${logFile}
+#  if [ "${hddFormat}" != "btrfs" ]; then
+#    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
+#  else
+#    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddCandidate})
+#  fi
+#  echo "Temp mounting (2) result: ${isMounted}" >> ${logFile}
+#
+#  # check that HDD was temp mounted
+#  if [ "${isMounted}" != "1" ]; then
+#    sed -i "s/^state=.*/state=errorHDD/g" ${infoFile}
+#    sed -i "s/^message=.*/message='Was not able to mount HDD (2)'/g" ${infoFile}
+#    exit 1
+#  fi
+#
   # make sure all links between directories/drives are correct
   echo "Refreshing links between directories/drives .." >> ${logFile}
   sudo /home/admin/config.scripts/blitz.datadrive.sh link

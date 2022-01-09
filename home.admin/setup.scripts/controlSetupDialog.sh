@@ -138,71 +138,71 @@ if [ "${setupPhase}" == "setup" ]; then
       existingBlockchain="BITCOIN"
     fi
 
-    # ask user about possible existing blockchain and formatting HDD
-    /home/admin/setup.scripts/dialogDeleteData.sh "${existingBlockchain}"
-    userChoice=$?
-    if [ "${userChoice}" == "1" ]; then
-
-      # FORMAT DATA DRIVE
-      filesystem="ext4"
-
-      # check if there is a flag set on sd card boot section to format as btrfs (experimental)
-      flagBTRFS=$(sudo ls /boot/btrfs* 2>/dev/null | grep -c btrfs)
-      if [ "${flagBTRFS}" != "0" ]; then
-        echo "Found BTRFS flag ---> formatting with experimental BTRFS filesystem"
-        filesystem="btrfs"
-        sleep 5
-      fi
-
-      # run formatting
-      echo "Running Format: (${filesystem}) (${hddCandidate})"
-      source <(sudo /home/admin/config.scripts/blitz.datadrive.sh format ${filesystem} ${hddCandidate})
-      if [ "${error}" != "" ]; then
-        echo "FAIL ON FORMATTING THE DRIVE:"
-        echo "${error}"
-        echo "Please report as issue on the raspiblitz github."
-        exit 1
-      fi
-
-    elif [ "${userChoice}" == "2" ]; then
-
-      # KEEP BLOCKCHAIN + DELETE ALL THE REST
-      
-      # when blockchain comes from another node migrate data first
-      if [ "${hddGotMigrationData}" != "" ]; then
-          clear
-          echo "Migrating Blockchain of ${hddGotMigrationData}'"
-          source <(sudo /home/admin/config.scripts/blitz.migration.sh migration-${hddGotMigrationData})
-          if [ "${err}" != "" ]; then
-            echo "MIGRATION OF BLOCKHAIN FAILED: ${err}"
-            echo "Format data disk on laptop & recover funds with fresh sd card using seed words + static channel backup."
-            exit 1
-          fi
-      fi
-
-      # delete everything but blockchain
-      echo "Deleting everything on HDD/SSD while keeping blockchain ..."
-      sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount 1>/dev/null 2>/dev/null
-      sudo /home/admin/config.scripts/blitz.datadrive.sh clean all -keepblockchain
-      if [ "${error}" != "" ]; then
-        echo "CLEANING HDD FAILED:"
-        echo "${error}"
-        echo "Please report as issue on the raspiblitz github."
-        exit 1
-      fi
-      sudo /home/admin/config.scripts/blitz.datadrive.sh unmount
-      sleep 2
-
-      # by keeping that blockchain - user chose already the blockchain type
-      echo "Selecting as blockchain network automatically .."
-      echo "network=bitcoin" >> $SETUPFILE
-
-    else
-
-      # STOP SETUP  - loop back to setup menu start
-      exit 0
-
-    fi
+#    # ask user about possible existing blockchain and formatting HDD
+#    /home/admin/setup.scripts/dialogDeleteData.sh "${existingBlockchain}"
+#    userChoice=$?
+#    if [ "${userChoice}" == "1" ]; then
+#
+#      # FORMAT DATA DRIVE
+#      filesystem="ext4"
+#
+#      # check if there is a flag set on sd card boot section to format as btrfs (experimental)
+#      flagBTRFS=$(sudo ls /boot/btrfs* 2>/dev/null | grep -c btrfs)
+#      if [ "${flagBTRFS}" != "0" ]; then
+#        echo "Found BTRFS flag ---> formatting with experimental BTRFS filesystem"
+#        filesystem="btrfs"
+#        sleep 5
+#      fi
+#
+#      # run formatting
+#      echo "Running Format: (${filesystem}) (${hddCandidate})"
+#      source <(sudo /home/admin/config.scripts/blitz.datadrive.sh format ${filesystem} ${hddCandidate})
+#      if [ "${error}" != "" ]; then
+#        echo "FAIL ON FORMATTING THE DRIVE:"
+#        echo "${error}"
+#        echo "Please report as issue on the raspiblitz github."
+#        exit 1
+#      fi
+#
+#    elif [ "${userChoice}" == "2" ]; then
+#
+#      # KEEP BLOCKCHAIN + DELETE ALL THE REST
+#      
+#      # when blockchain comes from another node migrate data first
+#      if [ "${hddGotMigrationData}" != "" ]; then
+#          clear
+#          echo "Migrating Blockchain of ${hddGotMigrationData}'"
+#          source <(sudo /home/admin/config.scripts/blitz.migration.sh migration-${hddGotMigrationData})
+#          if [ "${err}" != "" ]; then
+#            echo "MIGRATION OF BLOCKHAIN FAILED: ${err}"
+#            echo "Format data disk on laptop & recover funds with fresh sd card using seed words + static channel backup."
+#            exit 1
+#          fi
+#      fi
+#
+#      # delete everything but blockchain
+#      echo "Deleting everything on HDD/SSD while keeping blockchain ..."
+#      sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount 1>/dev/null 2>/dev/null
+#      sudo /home/admin/config.scripts/blitz.datadrive.sh clean all -keepblockchain
+#      if [ "${error}" != "" ]; then
+#        echo "CLEANING HDD FAILED:"
+#        echo "${error}"
+#        echo "Please report as issue on the raspiblitz github."
+#        exit 1
+#      fi
+#      sudo /home/admin/config.scripts/blitz.datadrive.sh unmount
+#      sleep 2
+#
+#      # by keeping that blockchain - user chose already the blockchain type
+#      echo "Selecting as blockchain network automatically .."
+#      echo "network=bitcoin" >> $SETUPFILE
+#
+#    else
+#
+#      # STOP SETUP  - loop back to setup menu start
+#      exit 0
+#
+#    fi
 
   fi
 
