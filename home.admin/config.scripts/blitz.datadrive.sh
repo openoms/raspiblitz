@@ -415,7 +415,7 @@ if [ "$1" = "status" ]; then
       hddUsedInfo="${datadrive} & ${storageDrive}"
     elif [ "${isZFS}" -gt 0 ]; then
       # ZFS calculations
-      hdd_used_space=$(zpool list -H | awk '{print $3}')
+      hdd_used_space=$(($(zpool list -Hp | awk '{print $3}')/1024/1024/1024))
       hdd_used_ratio=$((100 * ${hdd_used_space::-1} / hddGigaBytes))
       hdd_data_free1Kblocks=$(($(zpool list -pH | awk '{print $4}') / 1024))
       hddUsedInfo="${hdd_used_space} (${hdd_used_ratio}%)"
