@@ -121,11 +121,8 @@ if [ "$1" = "on" ]; then
   sudo nginx -t || exit 1
   sudo systemctl reload nginx
 
-  # sudo ufw allow 4000 comment "Galoy old API - deprecated)"
-  # sudo ufw allow 4001 comment "Galoy admin API HTTP" # localhost only
-  sudo ufw allow 4011 comment "Galoy admin API HTTPS"
-  # sudo ufw allow 4002 comment "Galoy new API HTTP"
-  sudo ufw allow 4012 comment "Galoy new API HTTPS"
+  sudo ufw allow 4011 comment "galoy-admin-API_ssl"
+  sudo ufw allow 4012 comment "galoy-API_ssl"
 
   # Tor not active as there is no password protection
   # /home/admin/config.scripts/tor.onion-service.sh galoy-admin-api 80 4001
@@ -133,7 +130,6 @@ if [ "$1" = "on" ]; then
   localIP=$(hostname -I)
   echo "# Connect to the Galoy admin API on: https://${localIP}:4011/graphql"
   echo "# Connect to the Galoy API on: https://${localIP}:4012/graphql"
-
 fi
 
 # https://github.com/GaloyMoney/web-wallet
@@ -154,7 +150,15 @@ if [ "$1" = "web-wallet" ]; then
   # In another terminal
   sudo -u galoy yarn dev:server
 
-  sudo ufw allow 4012 comment "Galoy new API HTTP"
+  # galoy-web-wallet_ssl
+  if ! [ -f /etc/nginx/sites-available/galoy-web-wallet_ssl.conf ]; then
+    sudo cp /home/admin/assets/galoy/galoy-web-wallet_ssl.conf /etc/nginx/sites-available/galoy-web-wallet_ssl.conf
+  fi
+  sudo ln -sf /etc/nginx/sites-available/galoy-web-wallet_ssl.conf /etc/nginx/sites-enabled/
+  sudo nginx -t || exit 1
+  sudo systemctl reload nginx
+  sudo ufw allow 4031 comment "galoy-web-wallet_ssl"
+  echo "# Connect to the web-wallet on: https://$(hostname -I):4031/graphql"
 fi
 
 # price
@@ -179,12 +183,21 @@ if [ "$1" = "test" ]; then
 fi
 
 if [ "$1" = "off" ]; then
+
+  docker compose down
+
   sudo ufw deny 4011
   sudo ufw deny 4012
   # /home/admin/config.scripts/tor.onion-service.sh off galoy-admin-api
   sudo rm /etc/nginx/sites-available/galoy-admin-API_ssl.conf
   sudo rm /etc/nginx/sites-available/galoy-API_ssl.conf
+
+  # web-wallet
+  sudo ufw deny 4031
+  sudo rm /etc/nginx/sites-available/galoy-web-wallet_ssl.conf
+
   sudo nginx -t || exit 1
   sudo systemctl reload nginx
   sudo userdel -rf galoy
+
 fi
