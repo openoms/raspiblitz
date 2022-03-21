@@ -10,16 +10,24 @@ fi
 
 # install
 if [ "$1" = "on" ]; then
+  ################
+  # Dependencies
+  ################
+  # https://github.com/GaloyMoney/charts/blob/main/charts/galoy/Chart.yaml
 
-  # https://github.com/GaloyMoney/galoy/blob/main/DEV.md#setup
+  # NodeJS
   /home/admin/config.scripts/bonus.nodejs.sh on
+
+  # Docker
   /home/admin/config.scripts/blitz.docker.sh on
 
+  # direnv
   if ! dpkg --list | grep direnv; then
     sudo apt-get update
     sudo apt-get install -y direnv
   fi
 
+  # Yarn
   if dpkg --list | grep yarg; then
     echo "# Yarn is already installed"
     yarn --version
@@ -31,14 +39,9 @@ if [ "$1" = "on" ]; then
     sudo apt-get install -y yarn
   fi
 
-  # Dependencies:
-  # https://github.com/GaloyMoney/galoy/blob/main/DEV.md#setup
-  # https://github.com/GaloyMoney/charts/blob/main/charts/galoy/Chart.yaml
-
-  # # redis
+  # redis
   # https://github.com/bitnami/charts/tree/master/bitnami/redis#redis-image-parameters
   # 6.2.6-debian-10-r142
-
   if [ $(redis-cli --version | grep -c "6.2.6") -lt 1 ]; then
     if ! gpg  /usr/share/keyrings/redis-archive-keyring.gpg 2>/dev/null; then
       curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
@@ -51,11 +54,13 @@ if [ "$1" = "on" ]; then
     redis-cli --version
   fi
 
-  ## MongoDB
+  ## MongoDB - using the Docker image
   #https://github.com/bitnami/charts/tree/master/bitnami/mongodb#mongodb-parameters
   # 4.4.11-debian-10-r12
-  # using Docker
 
+  #############################
+  # User, symlinks, permissions
+  #############################
   echo
   echo "# Create user and symlinks"
   sudo adduser --disabled-password --gecos "" galoy
@@ -73,6 +78,9 @@ if [ "$1" = "on" ]; then
   sudo /usr/sbin/usermod --append --groups lndadmin galoy
   sudo /usr/sbin/usermod --append --groups bitcoin galoy
 
+  ################
+  # Installation
+  ################
   echo "# Clone galoy"
   cd /home/galoy/ || exit 1
   sudo -u galoy git clone https://github.com/GaloyMoney/galoy
@@ -86,20 +94,45 @@ if [ "$1" = "on" ]; then
   sudo -u galoy cp /home/admin/raspiblitz/home.admin/assets/galoy/docker-compose.yml ./
   sudo -u galoy cp /home/admin/raspiblitz/home.admin/assets/galoy/Makefile ./
 
-  sudo -u galoy make start-sh-deps
-  # sudo -u galoy make start-sh
+  # sudo -u galoy make start-sh-deps
+  sudo -u galoy make start-sh
   # docker compose down
   # sudo -u galoy make reset-sh-deps
 
-
-  sudo ufw allow 4000 comment "Galoy old API - deprecated)"
-  sudo ufw allow 4001 comment "Galoy admin API"
-  sudo ufw allow 4002 comment "Galoy new API"
+  ##############
+  # Connections
+  ##############
+  # setup nginx symlinks
   # http://localhost:4000/graphql (old API - deprecated)
   # http://localhost:4001/graphql (admin API)
   # http://localhost:4002/graphql (new API)
+  # galoy-admin-API_ssl
+  if ! [ -f /etc/nginx/sites-available/galoy-admin-API_ssl.conf ]; then
+    sudo cp /home/admin/assets/galoy/galoy-admin-API_ssl.conf /etc/nginx/sites-available/galoy-admin-API_ssl.conf
+  fi
+  sudo ln -sf /etc/nginx/sites-available/galoy-admin-API_ssl.conf /etc/nginx/sites-enabled/
 
+  # galoy-API_ssl
+  if ! [ -f /etc/nginx/sites-available/galoy-API_ssl.conf ]; then
+    sudo cp /home/admin/assets/galoy/galoy-API_ssl.conf /etc/nginx/sites-available/galoy-API_ssl.conf
+  fi
+  sudo ln -sf /etc/nginx/sites-available/galoy-API_ssl.conf /etc/nginx/sites-enabled/
+
+  sudo nginx -t || exit 1
+  sudo systemctl reload nginx
+
+  # sudo ufw allow 4000 comment "Galoy old API - deprecated)"
+  # sudo ufw allow 4001 comment "Galoy admin API HTTP" # localhost only
+  sudo ufw allow 4011 comment "Galoy admin API HTTPS"
+  # sudo ufw allow 4002 comment "Galoy new API HTTP"
+  sudo ufw allow 4012 comment "Galoy new API HTTPS"
+
+  # Tor not active as there is no password protection
   # /home/admin/config.scripts/tor.onion-service.sh galoy-admin-api 80 4001
+
+  localIP=$(hostname -I)
+  echo "# Connect to the Galoy admin API on: https://${localIP}:4011/graphql"
+  echo "# Connect to the Galoy API on: https://${localIP}:4012/graphql"
 
 fi
 
@@ -110,16 +143,18 @@ if [ "$1" = "web-wallet" ]; then
   cd /home/galoy/ || exit 1
   sudo -u galoy git clone https://github.com/GaloyMoney/web-wallet
   cd web-wallet || exit 1
+
+  # copy edited .envrc
+  sudo -u galoy cp /home/admin/raspiblitz/home.admin/assets/galoy/web-wallet-env ./.envrc
+
+  # dependencies
+  sudo -u galoy docker compose up
   # https://github.com/GaloyMoney/web-wallet#how-to-run-this-repo-locally
   sudo -u galoy yarn install
   # In another terminal
   sudo -u galoy yarn dev:server
 
-  docker compose up
-
-  # copy edited .envrc
-  # sudo -u galoy cp /home/admin/raspiblitz/home.admin/assets/galoy/web-wallet-.envrc ./.envrc
-
+  sudo ufw allow 4012 comment "Galoy new API HTTP"
 fi
 
 # price
@@ -129,7 +164,7 @@ if [ "$1" = "price" ]; then
   echo "# Build galoy-price"
   cd /home/galoy/ || exit 1
   sudo -u galoy git clone https://github.com/GaloyMoney/price.git
-  cd price
+  cd price || exit 1
   sudo -u galoy docker build -f ./realtime/Dockerfile -t galoy-price .
   sudo -u galoy docker run galoy-price
 fi
@@ -144,5 +179,12 @@ if [ "$1" = "test" ]; then
 fi
 
 if [ "$1" = "off" ]; then
+  sudo ufw deny 4011
+  sudo ufw deny 4012
+  # /home/admin/config.scripts/tor.onion-service.sh off galoy-admin-api
+  sudo rm /etc/nginx/sites-available/galoy-admin-API_ssl.conf
+  sudo rm /etc/nginx/sites-available/galoy-API_ssl.conf
+  sudo nginx -t || exit 1
+  sudo systemctl reload nginx
   sudo userdel -rf galoy
 fi
