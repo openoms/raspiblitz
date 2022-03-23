@@ -20,7 +20,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   echo "### 1) INSTALL Docker ###"
 
   # check if Docker is installed
-  if docker -v ; then
+  if docker -v 2>/dev/null ; then
     echo "# Docker is already installed"
     docker -v
     docker compose version
@@ -60,7 +60,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   sudo usermod -aG docker admin
 
   echo
-  echo "### 2) INSTALL docker-compose ###"
+  echo "### 2) INSTALL docker compose ###"
 
   # # add docker compose
   # sudo pip3 install docker-compose
@@ -125,6 +125,8 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   # setting value in raspi blitz config
   /home/admin/config.scripts/blitz.conf.sh set docker "on"
   echo "# Docker install done"
+  docker -v
+  docker compose version
   exit 0
 fi
 
