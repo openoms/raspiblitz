@@ -7,12 +7,11 @@ sudo apt-get update
 echo -e "\nInstalling packer..."
 sudo apt-get install -y packer
 
-echo -e "\nInstalling virtualbox..."
-sudo apt-get install build-essential linux-headers-$(uname -r) dkms virtualbox-dkms
+# Install qemu
+echo -e "\nInstalling qemu..."
+sudo apt-get install -y qemu-system
 
 # Build the image
 echo -e "\nBuilding image..."
 cd debian
-PACKER_LOG=1 packer build -only=virtualbox-iso debian-11.4-amd64.json
-cd packer/debian
-packer init config.pkr.hcl
+PACKER_LOG=1 packer build -only=qemu debian-11.4-amd64.json
