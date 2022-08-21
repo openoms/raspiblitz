@@ -40,4 +40,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: raspiblitz-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }}
-          path: ${{ github.workspace }}/*.tar.gz*
+          path: ${{ github.workspace }}/*.*
