@@ -3,9 +3,18 @@
 # Install packer
 curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+
+# Install virtualbox
+curl -fsSL https://www.virtualbox.org/download/oracle_vbox_2016.asc| sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian $(lsb_release -cs) contrib"
+
 sudo apt-get update
+
 echo -e "\nInstalling packer..."
 sudo apt-get install -y packer
+
+echo -e "\nInstalling virtualbox..."
+sudo apt-get install virtualbox-6.1
 
 # Build the image
 echo -e "\nBuilding image..."
