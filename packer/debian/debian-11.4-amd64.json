@@ -147,14 +147,9 @@
   ],
   "post-processors": [
     {
-      "type": "checksum",
-      "checksum_types": ["sha256"],
-      "output": "{{ user `build_directory` }}/packer-{{user `template`}}-qemu.{{.ChecksumType}}",
+      "output": "{{ user `build_directory` }}/debian-11.4-amd64.box",
+      "type": "vagrant",
       "keep_input_artifact": true
-    },
-    {
-      "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box",
-      "type": "vagrant"
     }
   ]
 }

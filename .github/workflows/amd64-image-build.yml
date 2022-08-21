@@ -6,15 +6,11 @@ on:
     paths-ignore:
       - '*.md'
       - '.gitignore'
-      - 'packer/build-arm64-rpi.sh'
-      - 'packer/raspiblitz-arm64-rpi.pkr.hcl'
   pull_request:
     branches: [ "amd64-build" ]
     paths-ignore:
       - '*.md'
       - '.gitignore'
-      - 'packer/build-arm64-rpi.sh'
-      - 'packer/raspiblitz-arm64-rpi.pkr.hcl'
   workflow_dispatch:
 
 jobs:
@@ -29,15 +25,34 @@ jobs:
           echo "BUILD_VERSION=$(git describe --always --tags)" >> $GITHUB_ENV
 
       - name: Hello RaspiBlitz
-        run: echo "Building the raspiblitz-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }} at "
+        run: echo "Building the debian-11.4-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }} at "
 
       - name: Run the build script
         run: |
           cd packer
           bash packer.build.amd64.sh
 
-      - name: Upload the image
+      - name: Compute checksum of the raw image
+        run: |
+          cd builds/packer-debian-11.4-amd64-qemu/
+          sha256sum debian-11.4-amd64 > debian-11.4-amd64.sha256
+
+      - name: Compress image
+        run: |
+          cd builds/packer-debian-11.4-amd64-qemu/
+          gzip -v9 debian-11.4-amd64
+
+      - name: Compute checksum of the compressed image
+        run: |
+          cd builds/packer-debian-11.4-amd64-qemu/
+          sha256sum debian-11.4-amd64.gz > debian-11.4-amd64.gz.sha256
+
+      - name: Upload the image and checksums
         uses: actions/upload-artifact@v3
         with:
           name: raspiblitz-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }}
-          path: ${{ github.workspace }}/*.*
+          path: |
+            ${{ github.workspace }}/builds/packer-debian-11.4-amd64-qemu/debian-11.4-amd64.sha256
+            ${{ github.workspace }}/builds/packer-debian-11.4-amd64-qemu/debian-11.4-amd64.gz
+            ${{ github.workspace }}/builds/packer-debian-11.4-amd64-qemu/debian-11.4-amd64.gz.sha256
+            ${{ github.workspace }}/builds/debian-11.4.libvirt.box"
