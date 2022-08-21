@@ -7,11 +7,7 @@ sudo apt-get update
 echo -e "\nInstalling packer..."
 sudo apt-get install -y packer
 
-# Install qemu
-echo -e "\nInstalling qemu..."
-sudo apt-get install -y qemu-system
-
 # Build the image
-echo -e "\nBuilding packer image..."
+echo -e "\nBuilding image..."
 cd debian
 PACKER_LOG=1 packer build -only=virtualbox-iso debian-11.4-amd64.json
