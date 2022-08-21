@@ -124,6 +124,7 @@
   },
   "provisioners": [
     {
+      "type": "shell",
       "environment_vars": [
         "HOME_DIR=/home/vagrant",
         "http_proxy={{user `http_proxy`}}",
@@ -145,10 +146,10 @@
         "{{template_dir}}/../_common/parallels.sh",
         "{{template_dir}}/scripts/cleanup.sh",
         "{{template_dir}}/../_common/minimize.sh"
-      ],
-      "type": "shell"
+      ]
     },
     {
+      "type": "shell",
       "inline": [
         "echo 'nameserver 1.1.1.1' > /etc/resolv.conf",
         "echo 'nameserver 8.8.8.8' >> /etc/resolv.conf",
@@ -158,11 +159,11 @@
         "apt-get install -y sudo wget",
         "apt-get -y autoremove",
         "apt-get -y clean"
-      ],
-    "scripts": [
-      "../../test.sh"
-      ],
-    "type": "shell"
+      ]
+    },
+    {
+      "type": "shell",
+      "scripts": ["../../test.sh"]
     }
   ],
   "post-processors": [
