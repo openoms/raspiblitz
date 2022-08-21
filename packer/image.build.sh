@@ -9,5 +9,6 @@ apt-get install -y sudo wget
 apt-get -y autoremove
 apt-get -y clean
 
+echo "the current dir is: $(pwd)"
 # run the build script
-../test.sh
+../../test.sh
