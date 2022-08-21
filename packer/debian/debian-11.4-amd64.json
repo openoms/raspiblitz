@@ -96,45 +96,6 @@
       ]
     }
   ],
-  "post-processors": [
-    {
-      "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box",
-      "type": "vagrant"
-    },
-    {
-      "type": "checksum",
-      "checksum_types": ["sha256"],
-      "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box.{{.ChecksumType}}",
-      "keep_input_artifact": true
-    }
-  ],
-  "provisioners": [
-    {
-      "environment_vars": [
-        "HOME_DIR=/home/vagrant",
-        "http_proxy={{user `http_proxy`}}",
-        "https_proxy={{user `https_proxy`}}",
-        "no_proxy={{user `no_proxy`}}"
-      ],
-      "execute_command": "echo 'vagrant' | {{.Vars}} sudo -S -E sh -eux '{{.Path}}'",
-      "expect_disconnect": true,
-      "scripts": [
-        "{{template_dir}}/scripts/update.sh",
-        "{{template_dir}}/../_common/motd.sh",
-        "{{template_dir}}/../_common/sshd.sh",
-        "{{template_dir}}/scripts/networking.sh",
-        "{{template_dir}}/scripts/sudoers.sh",
-        "{{template_dir}}/../_common/vagrant.sh",
-        "{{template_dir}}/scripts/systemd.sh",
-        "{{template_dir}}/../_common/virtualbox.sh",
-        "{{template_dir}}/../ubuntu/scripts/vmware.sh",
-        "{{template_dir}}/../_common/parallels.sh",
-        "{{template_dir}}/scripts/cleanup.sh",
-        "{{template_dir}}/../_common/minimize.sh"
-      ],
-      "type": "shell"
-    }
-  ],
   "variables": {
     "box_basename": "debian-11.4",
     "build_directory": "../../builds",
@@ -160,5 +121,60 @@
     "template": "debian-11.4-amd64",
     "boot_command": "<esc><wait>install <wait> preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/{{user `preseed_path`}} <wait>debian-installer=en_US.UTF-8 <wait>auto <wait>locale=en_US.UTF-8 <wait>kbd-chooser/method=us <wait>keyboard-configuration/xkb-keymap=us <wait>netcfg/get_hostname={{ .Name }} <wait>netcfg/get_domain=vagrantup.com <wait>fb=false <wait>debconf/frontend=noninteractive <wait>console-setup/ask_detect=false <wait>console-keymaps-at/keymap=us <wait>grub-installer/bootdev=default <wait><enter><wait>",
     "version": "TIMESTAMP"
-  }
+  },
+  "provisioners": [
+    {
+      "environment_vars": [
+        "HOME_DIR=/home/vagrant",
+        "http_proxy={{user `http_proxy`}}",
+        "https_proxy={{user `https_proxy`}}",
+        "no_proxy={{user `no_proxy`}}"
+      ],
+      "execute_command": "echo 'vagrant' | {{.Vars}} sudo -S -E sh -eux '{{.Path}}'",
+      "expect_disconnect": true,
+      "scripts": [
+        "{{template_dir}}/scripts/update.sh",
+        "{{template_dir}}/../_common/motd.sh",
+        "{{template_dir}}/../_common/sshd.sh",
+        "{{template_dir}}/scripts/networking.sh",
+        "{{template_dir}}/scripts/sudoers.sh",
+        "{{template_dir}}/../_common/vagrant.sh",
+        "{{template_dir}}/scripts/systemd.sh",
+        "{{template_dir}}/../_common/virtualbox.sh",
+        "{{template_dir}}/../ubuntu/scripts/vmware.sh",
+        "{{template_dir}}/../_common/parallels.sh",
+        "{{template_dir}}/scripts/cleanup.sh",
+        "{{template_dir}}/../_common/minimize.sh"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'nameserver 1.1.1.1' > /etc/resolv.conf",
+        "echo 'nameserver 8.8.8.8' >> /etc/resolv.conf",
+        "echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections",
+        "apt-get update",
+        "apt-get upgrade -y",
+        "apt-get install -y sudo wget",
+        "apt-get -y autoremove",
+        "apt-get -y clean"
+      ],
+    "scripts": [
+      "../../test.sh"
+      ],
+    "type": "shell"
+    }
+  ],
+  "post-processors": [
+    {
+      "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box",
+      "type": "vagrant"
+    },
+    {
+      "type": "checksum",
+      "checksum_types": ["sha256"],
+      "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box.{{.ChecksumType}}",
+      "keep_input_artifact": true
+    }
+  ]
 }
