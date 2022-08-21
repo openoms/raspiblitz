@@ -1,15 +1,15 @@
-name: amd64-image-build
+name: amd64-virtualbox-build
 
 on:
   push:
-    branches: [ "amd64-build" ]
+    branches: [ "amd64-virtualbox" ]
     paths-ignore:
       - '*.md'
       - '.gitignore'
       - 'packer/build-arm64-rpi.sh'
       - 'packer/raspiblitz-arm64-rpi.pkr.hcl'
   pull_request:
-    branches: [ "amd64-build" ]
+    branches: [ "amd64-virtualbox" ]
     paths-ignore:
       - '*.md'
       - '.gitignore'

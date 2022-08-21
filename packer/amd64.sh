@@ -13,6 +13,5 @@ sudo apt-get install build-essential linux-headers-$(uname -r) dkms virtualbox-d
 # Build the image
 echo -e "\nBuilding image..."
 cd debian
-PACKER_LOG=1 packer build -only=virtualbox-iso debian-11.4-amd64.json
-cd packer/debian
 packer init config.pkr.hcl
+PACKER_LOG=1 packer build -only=virtualbox-iso debian-11.4-amd64.json
