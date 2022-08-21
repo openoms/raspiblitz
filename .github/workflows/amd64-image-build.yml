@@ -34,7 +34,7 @@ jobs:
       - name: Run the build script
         run: |
           cd packer
-          bash amd64.sh
+          bash packer.build.amd64.sh
 
       - name: Upload the image
         uses: actions/upload-artifact@v3

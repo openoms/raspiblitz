@@ -145,25 +145,9 @@
         "{{template_dir}}/../ubuntu/scripts/vmware.sh",
         "{{template_dir}}/../_common/parallels.sh",
         "{{template_dir}}/scripts/cleanup.sh",
-        "{{template_dir}}/../_common/minimize.sh"
+        "{{template_dir}}/../_common/minimize.sh",
+        "{{template_dir}}/../image.build.sh"
       ]
-    },
-    {
-      "type": "shell",
-      "inline": [
-        "echo 'nameserver 1.1.1.1' > /etc/resolv.conf",
-        "echo 'nameserver 8.8.8.8' >> /etc/resolv.conf",
-        "echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections",
-        "apt-get update",
-        "apt-get upgrade -y",
-        "apt-get install -y sudo wget",
-        "apt-get -y autoremove",
-        "apt-get -y clean"
-      ]
-    },
-    {
-      "type": "shell",
-      "scripts": ["../../test.sh"]
     }
   ],
   "post-processors": [
