@@ -1,0 +1,43 @@
+name: amd64-image-build
+
+on:
+  push:
+    branches: [ "amd64-build" ]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
+      - 'packer/build-arm64-rpi.sh'
+      - 'packer/raspiblitz-arm64-rpi.pkr.hcl'
+  pull_request:
+    branches: [ "amd64-build" ]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
+      - 'packer/build-arm64-rpi.sh'
+      - 'packer/raspiblitz-arm64-rpi.pkr.hcl'
+  workflow_dispatch:
+
+jobs:
+  amd64-image-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set values
+        run: |
+          echo "BUILD_DATE=$(date +"%Y-%m-%d")" >> $GITHUB_ENV
+          echo "BUILD_VERSION=$(git describe --always --tags)" >> $GITHUB_ENV
+
+      - name: Hello RaspiBlitz
+        run: echo "Building the raspiblitz-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }} at "
+
+      - name: Run the build script
+        run: |
+          cd packer
+          bash amd64.sh
+
+      - name: Upload the image
+        uses: actions/upload-artifact@v3
+        with:
+          name: raspiblitz-amd64-image-${{ env.BUILD_DATE }}-${{ env.BUILD_VERSION }}
+          path: ${{ github.workspace }}/*.tar.gz*
