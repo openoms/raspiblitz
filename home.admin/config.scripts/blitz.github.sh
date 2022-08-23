@@ -11,7 +11,7 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ "$1" = "-help" ];
   echo "FOR DEVELOPMENT USE ONLY!"
   echo "RaspiBlitz Sync Scripts"
   echo "blitz.github.sh info"
-  echo "blitz.github.sh [-run|-clean|-install|-justinstall] branch [repo]"
+  echo "blitz.github.sh [-run|-install|-justinstall] branch [repo]"
   exit 1
 fi
 
@@ -51,11 +51,6 @@ if [ "${wantedBranch}" = "-run" ]; then
     echo "# forcing github over vagrant sync"
     vagrant=0
   fi
-fi
-if [ "${wantedBranch}" = "-clean" ]; then
-  clean=1
-  wantedBranch="$2"
-  wantedGitHubUser="$3"
 fi
 if [ "${wantedBranch}" = "-install" ]; then
   install=1
@@ -134,6 +129,7 @@ if [ ${vagrant} -eq 0 ]; then
   echo "# REPO ----> ${origin}"
   echo "# BRANCH --> ${activeBranch}"
   echo "# ******************************************"
+  git config pull.rebase true
   git pull 1>&2
   cd ..
 else
@@ -145,40 +141,31 @@ else
   sudo rm -r /home/admin/raspiblitz
   sudo mkdir /home/admin/raspiblitz
   echo "# - copy from vagrant new raspiblitz files (ignore hidden dirs)"
-  sudo cp -r /vagrant/* /home/admin/raspiblitz
+  sudo cp -R /vagrant/* /home/admin/raspiblitz
   echo "# - set admin as owner of files"
   sudo chown admin:admin -R /home/admin/raspiblitz
 fi
 
-if [ ${clean} -eq 1 ]; then
-  echo "# Cleaning scripts and assets .. "
-  sudo rm -f *.sh
-  sudo rm -rf assets
-  sudo rm -rf /home/admin/config.scripts
-  sudo rm -rf /home/admin/setup.scripts
-else
-  echo "# ******************************************"
-  echo "# NOT cleaning/deleting old files"
-  echo "# use parameter '-clean' if you want that next time"
-  echo "# ******************************************"
-fi
-
 echo "# COPYING from GIT-Directory to /home/admin/"
+echo "# - basic admin files"
+sudo rm -f *.sh
 sudo -u admin cp /home/admin/raspiblitz/home.admin/.tmux.conf /home/admin
-sudo -u admin cp -r /home/admin/raspiblitz/home.admin/assets /home/admin/
-sudo -u admin cp /home/admin/raspiblitz/home.admin/*.* /home/admin
+sudo -u admin cp /home/admin/raspiblitz/home.admin/*.* /home/admin 2>/dev/null
 sudo -u admin chmod 755 *.sh
-sudo -u admin cp -r /home/admin/raspiblitz/home.admin/config.scripts /home/admin/
+echo "# - asset directory"
+sudo rm -rf assets
+sudo -u admin cp -R /home/admin/raspiblitz/home.admin/assets /home/admin/assets
+echo "# - config.scripts directory"
+sudo rm -rf /home/admin/config.scripts
+sudo -u admin cp -R /home/admin/raspiblitz/home.admin/config.scripts /home/admin/config.scripts 
 sudo -u admin chmod 755 /home/admin/config.scripts/*.sh
-sudo -u admin cp -r /home/admin/raspiblitz/home.admin/setup.scripts /home/admin/
+sudo -u admin chmod 755 /home/admin/config.scripts/*.py
+echo "# - setup.scripts directory"
+sudo rm -rf /home/admin/setup.scripts
+sudo -u admin cp -R /home/admin/raspiblitz/home.admin/setup.scripts /home/admin/setup.scripts
 sudo -u admin chmod 755 /home/admin/setup.scripts/*.sh
+sudo -u admin chmod 755 /home/admin/config.scripts/*.py
 echo "# ******************************************"
-
-echo "# Syncing Webcontent .."
-if [ -d /var/www/public ]; then
-  sudo cp -a /home/admin/assets/nginx/www_public/* /var/www/public
-  sudo chown www-data:www-data /var/www/public
-fi
 
 echo "# Checking if the content of BlitzPy changed .."
 checkSumBlitzPyAfter=$(find /home/admin/raspiblitz/home.admin/BlitzPy -type f -exec md5sum {} \; | md5sum)

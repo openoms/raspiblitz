@@ -9,7 +9,6 @@ echo "services default values"
 if [ ${#autoPilot} -eq 0 ]; then autoPilot="off"; fi
 if [ ${#autoUnlock} -eq 0 ]; then autoUnlock="off"; fi
 if [ ${#runBehindTor} -eq 0 ]; then runBehindTor="off"; fi
-if [ ${#autoNatDiscovery} -eq 0 ]; then autoNatDiscovery="off"; fi
 if [ ${#networkUPnP} -eq 0 ]; then networkUPnP="off"; fi
 if [ ${#touchscreen} -eq 0 ]; then touchscreen=0; fi
 if [ ${#lcdrotate} -eq 0 ]; then lcdrotate=0; fi
@@ -18,6 +17,7 @@ if [ ${#circuitbreaker} -eq 0 ]; then circuitbreaker="off"; fi
 if [ ${#clboss} -eq 0 ]; then clboss="off"; fi
 if [ ${#clEncryptedHSM} -eq 0 ]; then clEncryptedHSM="off"; fi
 if [ ${#clAutoUnlock} -eq 0 ]; then clAutoUnlock="off"; fi
+if [ ${#blitzapi} -eq 0 ]; then blitzapi="off"; fi
 
 echo "# map LND to on/off"
 lndNode="off"
@@ -31,7 +31,7 @@ if [ "${lightning}" == "cl" ] || [ "${cl}" == "on" ]; then
   clNode="on"
 fi
 
-echo "map nextcloudbackup to on/off"
+echo "# map nextcloudbackup to on/off"
 NextcloudBackup="off"
 if [ $nextcloudBackupServer ] && [ $nextcloudBackupUser ] && [ $nextcloudBackupPassword ]; then NextcloudBackup="on"; fi
 
@@ -77,13 +77,6 @@ else
   autoPilot="off"
 fi
 
-echo "# map keysend to on/off"
-keysend="on"
-source <(sudo /home/admin/config.scripts/lnd.keysend.sh status)
-if [ ${keysendOn} -eq 0 ]; then
-  keysend="off"
-fi
-
 echo "# map clboss to on/off"
 clbossMenu='off'
 if [ "${clboss}" == "on" ]; then
@@ -102,16 +95,25 @@ if [ "${clAutoUnlock}" == "on" ]; then
   clAutoUnlockMenu='on'
 fi
 
+echo "# map keysend to on/off (may take time)"
+keysend="on"
+source <(sudo /home/admin/config.scripts/lnd.keysend.sh status)
+if [ ${keysendOn} -eq 0 ]; then
+  keysend="off"
+fi
+
 # show select dialog
 echo "run dialog ..."
 
 # BASIC MENU INFO
 OPTIONS=()
 
+OPTIONS+=(A 'Blitz API + WebUI' ${blitzapi})
+
 # LCD options (only when running with LCD screen)
 if [ "${displayClass}" == "lcd" ]; then
-  OPTIONS+=(s 'Touchscreen' ${touchscreenMenu}) 
-  OPTIONS+=(r 'LCD Rotate' ${lcdrotateMenu})  
+  OPTIONS+=(s 'Touchscreen (experimental)' ${touchscreenMenu})
+  OPTIONS+=(r 'LCD Rotate' ${lcdrotateMenu})
 fi
 
 # Important basic options
@@ -120,24 +122,23 @@ OPTIONS+=(z 'ZeroTier' ${zerotierSwitch})
 
 if [ ${#runBehindTor} -eq 0 ] || [ "${runBehindTor}" = "off" ]; then
   OPTIONS+=(y ${dynDomainMenu} ${domainValue})
-  OPTIONS+=(b 'BTC UPnP (AutoNAT)' ${networkUPnP})  
+  OPTIONS+=(b 'BTC UPnP (AutoNAT)' ${networkUPnP})
 fi
 OPTIONS+=(p 'Parallel Testnet/Signet' ${parallelTestnets})
 
 # LND & options (only when running LND)
-OPTIONS+=(m 'LND LIGHTNING LABS NODE' ${lndNode}) 
+OPTIONS+=(m 'LND LIGHTNING LABS NODE' ${lndNode})
 if [ "${lndNode}" == "on" ]; then
-  OPTIONS+=(a '-LND Channel Autopilot' ${autoPilot}) 
-  OPTIONS+=(k '-LND Accept Keysend' ${keysend})  
-  OPTIONS+=(c '-LND Circuitbreaker (firewall)' ${circuitbreaker})  
-  OPTIONS+=(u '-LND Auto-Unlock' ${autoUnlock})  
+  OPTIONS+=(a '-LND Channel Autopilot' ${autoPilot})
+  OPTIONS+=(k '-LND Accept Keysend' ${keysend})
+  OPTIONS+=(c '-LND Circuitbreaker (firewall)' ${circuitbreaker})
+  OPTIONS+=(u '-LND Auto-Unlock' ${autoUnlock})
   OPTIONS+=(x '-LND StaticChannelBackup on Nextcloud' ${NextcloudBackup})
   OPTIONS+=(e '-LND StaticChannelBackup USB Drive' ${LocalBackup})
-  OPTIONS+=(l '-LND UPnP (AutoNAT)' ${autoNatDiscovery})
 fi
 
-# C-Lightning & options/PlugIns
-OPTIONS+=(n 'CL C-LIGHTNING NODE' ${clNode}) 
+# Core Lightning & options/PlugIns
+OPTIONS+=(n 'CL CORE LIGHTNING NODE' ${clNode})
 if [ "${clNode}" == "on" ]; then
   OPTIONS+=(o '-CL CLBOSS Automatic Node Manager' ${clbossMenu})
   OPTIONS+=(h '-CL Wallet Encryption' ${clEncryptedHSMMenu})
@@ -164,6 +165,25 @@ fi
 
 needsReboot=0
 anychange=0
+
+# Blitz API + webUI process choice
+choice="off"; check=$(echo "${CHOICES}" | grep -c "A")
+if [ ${check} -eq 1 ]; then choice="on"; fi
+if [ "${blitzapi}" != "${choice}" ]; then
+  echo "Blitz API + webUI settings changed .."
+  anychange=1
+  sudo /home/admin/config.scripts/blitz.web.api.sh ${choice}
+  sudo /home/admin/config.scripts/blitz.web.ui.sh ${choice}
+  errorOnInstall=$?
+  if [ "${choice}" =  "on" ]; then
+    whiptail --title " Installed Blitz API + webUI" --msgbox "\
+The Blitz API + webUI was installed.\n
+See the status screen for more info.\n
+" 10 35
+  fi
+else
+  echo "Blitz API + webUI Setting unchanged."
+fi
 
 # LND AUTOPILOT process choice
 choice="off"; check=$(echo "${CHOICES}" | grep -c "a")
@@ -210,27 +230,6 @@ else
   echo "BTC UPnP Setting unchanged."
 fi
 
-# LND AutoNAT
-choice="off"; check=$(echo "${CHOICES}" | grep -c "l")
-if [ ${check} -eq 1 ]; then choice="on"; fi
-if [ "${autoNatDiscovery}" != "${choice}" ] && [ "${lndNode}" == "on" ]; then
-  echo "AUTO NAT Setting changed .."
-  anychange=1
-  if [ "${choice}" = "on" ]; then
-    echo "Starting autoNAT ..."
-    /home/admin/config.scripts/lnd.autonat.sh on
-    autoNatDiscovery="on"
-    needsReboot=1
-  else
-    echo "Stopping autoNAT ..."
-    /home/admin/config.scripts/lnd.autonat.sh off
-    autoNatDiscovery="off"
-    needsReboot=1
-  fi
-else
-  echo "LND AUTONAT Setting unchanged."
-fi
-
 # Tor process choice
 choice="off"; check=$(echo "${CHOICES}" | grep -c "t")
 if [ ${check} -eq 1 ]; then choice="on"; fi
@@ -247,14 +246,12 @@ RaspiBlitz will now install/activate Tor & after reboot run behind it.
 Please keep in mind that thru your LND node id & your previous IP history with your internet provider your lightning node could still be linked to your personal id even when running behind Tor. To unlink you from that IP history its recommended that after the switch/reboot to Tor you also use the REPAIR > RESET-LND option to create a fresh LND wallet. That might involve closing all channels & move your funds out of RaspiBlitz before that RESET-LND.
 " 16 76
 
-    # make sure AutoNAT & UPnP is off
-    /home/admin/config.scripts/lnd.autonat.sh off
     /home/admin/config.scripts/network.upnp.sh off
   fi
 
   # change Tor
   anychange=1
-  sudo /home/admin/config.scripts/internet.tor.sh ${choice}
+  sudo /home/admin/config.scripts/tor.network.sh ${choice}
   needsReboot=1
 
 else
@@ -272,7 +269,7 @@ if [ "${autoUnlock}" != "${choice}" ] && [ "${lndNode}" == "on" ]; then
     l1="AUTO-UNLOCK IS NOW OFF"
     if [ "${choice}" = "on" ]; then
       l1="AUTO-UNLOCK IS NOW ACTIVE"
-    fi  
+    fi
     dialog --title 'OK' --msgbox "\n${l1}\n" 9 50
     needsReboot=1
   fi
@@ -378,7 +375,7 @@ if [ "${zerotierSwitch}" != "${choice}" ]; then
   else
     dialog --msgbox "ZeroTier is now OFF." 5 46
   fi
-  
+
 else
   echo "ZeroTier setting unchanged."
 fi
@@ -414,25 +411,35 @@ choice="off"; check=$(echo "${CHOICES}" | grep -c "n")
 if [ ${check} -eq 1 ]; then choice="on"; fi
 if [ "${clNode}" != "${choice}" ]; then
   anychange=1
-  echo "# C-Lightning NODE Setting changed .."
+  echo "# Core Lightning NODE Setting changed .."
   if [ "${choice}" = "on" ]; then
     echo "# turning ON"
+
     /home/admin/config.scripts/cl.install.sh on mainnet
-    sudo /home/admin/config.scripts/cl.install.sh display-seed mainnet
+    # generate wallet from seedwords or just display (write to dev/null to not write seed words to logs)
+    /home/admin/config.scripts/cl.hsmtool.sh new mainnet 1>/dev/null
     if [ "${testnet}" == "on" ]; then
+      # no seed for testnet
       /home/admin/config.scripts/cl.install.sh on testnet
     fi
     if [ "${signet}" == "on" ]; then
+      # no seed for signet
       /home/admin/config.scripts/cl.install.sh on signet
     fi
+
+    # make sure that cln-grpc is on for the WebAPI
+    /home/admin/config.scripts/cl-plugin.cln-grpc.sh install
+    /home/admin/config.scripts/cl-plugin.cln-grpc.sh on
+
   else
     echo "# turning OFF"
+    /home/admin/config.scripts/cl-plugin.cln-grpc.sh off
     /home/admin/config.scripts/cl.install.sh off mainnet
     /home/admin/config.scripts/cl.install.sh off testnet
     /home/admin/config.scripts/cl.install.sh off signet
   fi
 else
-  echo "C-Lightning NODE setting unchanged."
+  echo "Core Lightning NODE setting unchanged."
 fi
 
 # CLBOSS process choice
@@ -441,7 +448,16 @@ if [ ${check} -eq 1 ]; then choice="on"; fi
 if [ "${clboss}" != "${choice}" ] && [ "${clNode}" == "on" ]; then
   echo "CLBOSS Setting changed .."
   anychange=1
-  sudo /home/admin/config.scripts/cl-plugin.clboss.sh ${choice}
+  if [ ${choice} = on ]; then
+    if /home/admin/config.scripts/cl-plugin.clboss.sh info; then
+      sudo /home/admin/config.scripts/cl-plugin.clboss.sh on
+    else
+      echo "CLBOSS install was cancelled."
+      sleep 2
+    fi
+  else
+    sudo /home/admin/config.scripts/cl-plugin.clboss.sh off
+  fi
   needsReboot=0
 else
   echo "CLBOSS Setting unchanged."
@@ -454,7 +470,7 @@ if [ "${clEncryptedHSM}" != "${choice}" ] && [ "${clNode}" == "on" ]; then
   echo "clEncryptedHSM Setting changed .."
   anychange=1
   if [ "${choice}" == "on" ]; then
-    /home/admin/config.scripts/cl.hsmtool.sh encrypt mainnet
+    sudo /home/admin/config.scripts/cl.hsmtool.sh encrypt mainnet
   else
     /home/admin/config.scripts/cl.hsmtool.sh decrypt mainnet
   fi
@@ -482,7 +498,8 @@ fi
 # parallel testnet process choice
 choice="off"; check=$(echo "${CHOICES}" | grep -c "p")
 if [ ${check} -eq 1 ]; then choice="on"; fi
-if [ "${testnet}" != "${choice}" ]; then
+if [ "${testnet}" != "${choice}" ] || \
+   [ "${signet}" != "${choice}" ]; then
   echo "# Parallel Testnets Setting changed .."
   anychange=1
   if [ "${choice}" = "on" ]; then
@@ -495,9 +512,9 @@ if [ "${testnet}" != "${choice}" ]; then
     if [ "${lightning}" == "cl" ] || [ "${cl}" == "on" ]; then
       /home/admin/config.scripts/cl.install.sh on testnet
       /home/admin/config.scripts/cl.install.sh on signet
-    fi 
+    fi
   else
-    # just turn al lightning testnets off (even if not on before)
+    # just turn all lightning testnets off (even if not on before)
     /home/admin/config.scripts/lnd.install.sh off testnet
     /home/admin/config.scripts/lnd.install.sh off signet
     /home/admin/config.scripts/cl.install.sh off testnet

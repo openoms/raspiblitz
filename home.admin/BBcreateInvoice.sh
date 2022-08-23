@@ -17,7 +17,6 @@ if [ ${#chain} -eq 0 ]; then
 fi
 
 source <(/home/admin/config.scripts/network.aliases.sh getvars $1 $2)
-
 source <(/home/admin/config.scripts/network.aliases.sh getvars $LNTYPE ${chain}net)
 
 # check if chain is in sync
@@ -56,9 +55,9 @@ elif [ $LNTYPE = lnd ];then
 fi
 if [ ${openChannels} -eq 0 ]; then
   echo 
-  echo "!!!!!!!!!!!!!!!!!!!"
+  echo "#########"
   echo "FAIL - You have NO ESTABLISHED CHANNELS .. open a channel first."
-  echo "!!!!!!!!!!!!!!!!!!!"
+  echo "#########"
   sleep 3
   exit 0
 fi
@@ -110,9 +109,9 @@ error=$(cat ${_error} 2>/dev/null)
 #echo "error(${error})"
 
 if [ ${#error} -gt 0 ]; then
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "FAIL"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "${error}"
 else
   if [ $LNTYPE = cl ];then
@@ -121,11 +120,14 @@ else
     rhash=$(echo "$result" | grep r_hash | cut -d '"' -f4)
     payReq=$(echo "$result" | grep payment_request | cut -d '"' -f4)
   fi
-  /home/admin/config.scripts/blitz.display.sh qr "${payReq}"
+  sudo /home/admin/config.scripts/blitz.display.sh qr "${payReq}"
 
   if [ $(sudo dpkg-query -l | grep "ii  qrencode" | wc -l) = 0 ]; then
    sudo apt-get install qrencode -y > /dev/null
   fi
+
+  # raise high focus on lightning channel balance next 5min
+  /home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_channels_balance 0 300
 
   echo
   echo "********************"
@@ -160,8 +162,8 @@ else
       echo $result
       echo
       echo "OK the Invoice was paid - returning to menu."
-      /home/admin/config.scripts/blitz.display.sh hide
-      /home/admin/config.scripts/blitz.display.sh image /home/admin/raspiblitz/pictures/ok.png
+      sudo /home/admin/config.scripts/blitz.display.sh hide
+      sudo /home/admin/config.scripts/blitz.display.sh image /home/admin/raspiblitz/pictures/ok.png
       sleep 2
       break
     fi
@@ -180,7 +182,7 @@ else
 
   done
 
-  /home/admin/config.scripts/blitz.display.sh hide
+  sudo /home/admin/config.scripts/blitz.display.sh hide
 
 fi
 echo "Press ENTER to return to main menu."

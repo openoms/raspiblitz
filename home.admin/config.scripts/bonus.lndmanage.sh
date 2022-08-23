@@ -15,11 +15,6 @@ gpgFingerprint="0453B9F5071261A40FDB34181965063FC13BEBE2"
 
 source /mnt/hdd/raspiblitz.conf
 
-# add default value to raspi config if needed
-if ! grep -Eq "^lndmanage=" /mnt/hdd/raspiblitz.conf; then
-  echo "lndmanage=off" >> /mnt/hdd/raspiblitz.conf
-fi
-
 # show info menu
 if [ "$1" = "menu" ]; then
   dialog --title " Info lndmanage " --msgbox "\n\
@@ -57,7 +52,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
 
   echo "# checking signing keys ..."
   gpg --import sigingkey.gpg
-  verifyResult=$(gpg --verify lndmanage-${lndmanageVersion}-py3-none-any.whl.asc 2>&1)
+  verifyResult=$(LANG=en_US.utf8; gpg --verify lndmanage-${lndmanageVersion}-py3-none-any.whl.asc 2>&1)
   goodSignature=$(echo ${verifyResult} | grep 'Good signature' -c)
   correctKey=$(echo ${verifyResult} | tr -d " \t\n\r" | grep "${gpgFingerprint}" -c)
   echo "goodSignature='${goodSignature}'"
@@ -84,15 +79,15 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   # check if install was successful
   if [ $(python3 -m pip list | grep -c "lndmanage") -eq 0 ]; then
     echo
-    echo "#!! FAIL --> Was not able to install LNDMANAGE"
-    echo "#!! Maybe because of internet network issues - try again later."
+    echo "## FAIL --> Was not able to install LNDMANAGE"
+    echo "## Maybe because of internet network issues - try again later."
     sudo rm -rf /home/admin/lndmanage
     sleep 5
     exit 1
   fi
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^lndmanage=.*/lndmanage=on/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set lndmanage "on"
   echo "#######################################################################"
   echo "# OK install done"
   echo "#######################################################################"
@@ -107,7 +102,7 @@ fi
 if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^lndmanage=.*/lndmanage=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set lndmanage "off"
   
   echo "*** REMOVING LNDMANAGE ***"
   sudo rm -rf /home/admin/lndmanage

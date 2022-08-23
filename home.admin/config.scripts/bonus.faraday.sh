@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# !! NOTICE: Faraday is now prt of the 'bonus.lit.sh' bundle
+# NOTICE: Faraday is now prt of the 'bonus.lit.sh' bundle
 # this single install script will still be available for now
 # but main focus for the future development should be on LIT
 
@@ -8,7 +8,7 @@
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "Bonus App: faraday -> https://github.com/lightninglabs/faraday"
  echo "lnd.faraday.sh [status|on|off]"
- echo "!! DEPRECATED use instead: bonus.lit.sh"
+ echo "# DEPRECATED use instead: bonus.lit.sh"
  exit 1
 fi
 
@@ -20,10 +20,11 @@ PGPkeys="https://keybase.io/carlakirkcohen/pgp_keys.asc"
 PGPcheck="15E7ECF257098A4EF91655EB4CA7FE54A6213C91"
 
 # 1. parameter [info|verified|reckless]
-mode="$1" 
+mode="$1"
 
 # GATHER DATA
 source /home/admin/raspiblitz.info
+source <(/home/admin/_cache.sh get state)
 source /mnt/hdd/raspiblitz.conf
 
 # setting download directory
@@ -89,7 +90,7 @@ if [ "${mode}" = "on" ] || [ "${mode}" = "1" ]; then
 
   echo "# INSTALL bonus.faraday.sh version: ${version}"
 
-  echo 
+  echo
   echo "# clean & change into download directory"
   sudo rm -r ${downloadDir}/*
   cd "${downloadDir}"
@@ -130,21 +131,21 @@ if [ "${mode}" = "on" ] || [ "${mode}" = "1" ]; then
     exit 1
   fi
 
-  echo 
+  echo
   echo "# getting gpg finger print"
-  gpg ./pgp_keys.asc
-  fingerprint=$(sudo gpg "${downloadDir}/pgp_keys.asc" 2>/dev/null | grep "${PGPcheck}" -c)
+  gpg --show-keys ./pgp_keys.asc
+  fingerprint=$(sudo gpg --show-keys "${downloadDir}/pgp_keys.asc" 2>/dev/null | grep "${PGPcheck}" -c)
   if [ ${fingerprint} -lt 1 ]; then
     echo "error='PGP author check failed'"
     exit 1
   fi
   echo "fingerprint='${fingerprint}'"
 
-  echo 
+  echo
   echo "# checking PGP finger print"
   gpg --import ./pgp_keys.asc
   sleep 3
-  verifyResult=$(gpg --verify manifest-v${version}.txt.sig 2>&1)
+  verifyResult=$(LANG=en_US.utf8; gpg --verify manifest-v${version}.txt.sig 2>&1)
   goodSignature=$(echo ${verifyResult} | grep 'Good signature' -c)
   echo "goodSignature='${goodSignature}'"
   correctKey=$(echo ${verifyResult} | tr -d " \t\n\r" | grep "${PGPcheck}" -c)
@@ -183,7 +184,7 @@ if [ "${mode}" = "on" ] || [ "${mode}" = "1" ]; then
   # create symlink
   sudo ln -s /mnt/hdd/app-data/lnd/ /home/faraday/.lnd
   # sync all macaroons and unix groups for access
-  /home/admin/config.scripts/lnd.credentials.sh sync
+  /home/admin/config.scripts/lnd.credentials.sh sync "${chain:-main}net"
   # macaroons will be checked after install
   # add user to group with admin access to lnd
   sudo /usr/sbin/usermod --append --groups lndadmin faraday
@@ -197,7 +198,7 @@ if [ "${mode}" = "on" ] || [ "${mode}" = "1" ]; then
   sudo /usr/sbin/usermod --append --groups lndsigner faraday
   sudo /usr/sbin/usermod --append --groups lndwalletkit faraday
   sudo /usr/sbin/usermod --append --groups lndrouter faraday
- 
+
   # install service
   echo "*** Install systemd ***"
   echo "
@@ -242,10 +243,7 @@ WantedBy=multi-user.target
   sudo chown -R faraday:faraday /home/faraday/.faraday
 
   echo "# flag in raspiblitz config"
-  if [ ${#faraday} -eq 0 ]; then
-    echo "faraday='on'" >> /mnt/hdd/raspiblitz.conf
-  fi
-  sudo sed -i "s/^faraday=.*/faraday=on/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set faraday "on"
 
   echo "# OK Faraday is installed"
   echo "# please 'restart' for clean creation of faraday tls/macaroons"
@@ -267,10 +265,10 @@ if [ "${mode}" = "off" ] || [ "${mode}" = "0" ]; then
   sudo userdel -r -f faraday
 
   echo "# modify config file"
-  sudo sed -i "s/^faraday=.*/faraday=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set faraday "off"
 
   exit 1
- 
+
 fi
 
 echo "error='parameter not known'"

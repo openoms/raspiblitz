@@ -5,8 +5,9 @@ echo "get raspiblitz config"
 source /home/admin/raspiblitz.info
 source /mnt/hdd/raspiblitz.conf
 
-# get the local network IP to be displayed on the LCD
-source <(/home/admin/config.scripts/internet.sh status local)
+source <(/home/admin/_cache.sh get internet_localip internet_localiprange)
+localIP="${internet_localip}"
+localIPrange="${internet_localiprange}"
 
 # BASIC MENU INFO
 WIDTH=64
@@ -19,12 +20,16 @@ OPTIONS+=(MOBILE "Connect Mobile Wallet")
 if [ "${ElectRS}" == "on" ]; then
   OPTIONS+=(ELECTRS "Electrum Rust Server")
 fi
-if [ "${BTCPayServer}" == "on" ]; then
-  OPTIONS+=(BTCPAY "Show LND connection string")
+if [ "${BTCPayServer}" == "on" ] && [ "${lnd}" = "on" ]; then
+  OPTIONS+=(BTCPAY-LND "Show LND connection string")
+fi
+if [ "${BTCPayServer}" == "on" ] && [ "${cl}" = "on" ]; then
+  OPTIONS+=(BTCPAY-CLN "Show CLN connection string")
 fi
 OPTIONS+=(${network}RPC "Connect Specter Desktop or JoinMarket")
 OPTIONS+=(BISQ "Connect Bisq to this node")
 if [ "${lightning}" == "lnd" ] || [ "${lnd}" == "on" ]; then
+  OPTIONS+=(ALBY "Connect Alby to this node")
   OPTIONS+=(EXPORT "Get Macaroons and TLS.cert")
   OPTIONS+=(RESET "Recreate LND Macaroons & tls.cert")
   OPTIONS+=(SYNC "Sync Macaroons & tls.cert with Apps/Users")
@@ -48,24 +53,34 @@ case $CHOICE in
     /home/admin/97addMobileWallet.sh;;
   ELECTRS)
     /home/admin/config.scripts/bonus.electrs.sh menu;;
-  BTCPAY)
+  BTCPAY-LND)
     /home/admin/config.scripts/lnd.export.sh btcpay
     echo "Press ENTER to return to main menu."
     read key
     exit 0;;
+  BTCPAY-CLN)
+    /home/admin/config.scripts/bonus.btcpayserver.sh cln-lightning-rpc-access
+    echo "Press ENTER to return to main menu."
+    read key
+    exit 0;;
   RESET)
-    sudo /home/admin/config.scripts/lnd.credentials.sh reset
-    sudo /home/admin/config.scripts/lnd.credentials.sh sync
+    sudo /home/admin/config.scripts/lnd.credentials.sh reset "${chain:-main}net"
+    sudo /home/admin/config.scripts/lnd.credentials.sh sync "${chain:-main}net"
     sudo /home/admin/config.scripts/blitz.shutdown.sh reboot
     exit 0;;
   SYNC)
-    sudo /home/admin/config.scripts/lnd.credentials.sh sync
+    sudo /home/admin/config.scripts/lnd.credentials.sh sync "${chain:-main}net"
     echo "Press ENTER to return to main menu."
     read key
     exit 0;;
   EXPORT)
     sudo /home/admin/config.scripts/lnd.export.sh
     exit 0;;
+
+  ALBY)
+    /home/admin/config.scripts/bonus.alby.sh
+    exit 0;
+  ;;
 
   BISQ)
     OPTIONS=()
@@ -161,14 +176,10 @@ HiddenServicePort 8333 127.0.0.1:8333" | sudo tee -a /etc/tor/torrc
       # have this to signal that selection went wrong
       BITCOINRPCPORT=0
     fi
-    echo "# Running on ${chain}net"
+    echo "# Running on ${chain:-main}net"
     echo
-    localIPrange=$(ip addr | grep 'state UP' -A2 | grep -E -v 'docker0|veth' |\
-    grep 'eth0\|wlan0\|enp0\|inet' | tail -n1 | awk '{print $2}' |\
-    awk -F. '{print $1"."$2"."$3".0/24"}')
-    localIP=$(hostname -I | awk '{print $1}')
     allowIPrange=$(grep -c "rpcallowip=$localIPrange" <  /mnt/hdd/${network}/${network}.conf)
-    bindIP=$(grep -c "${chain}.rpcbind=$localIP" <  /mnt/hdd/${network}/${network}.conf)
+    bindIP=$(grep -c "${chain:-main}.rpcbind=$localIP" <  /mnt/hdd/${network}/${network}.conf)
     rpcTorService=$(grep -c "HiddenServicePort ${BITCOINRPCPORT} 127.0.0.1:${BITCOINRPCPORT}"  < /etc/tor/torrc)
     TorRPCaddress=$(sudo cat /mnt/hdd/tor/bitcoin${BITCOINRPCPORT}/hostname)
 
@@ -226,10 +237,10 @@ HiddenServicePort 8333 127.0.0.1:8333" | sudo tee -a /etc/tor/torrc
 
     case $CHOICE in
       ADDRPCLAN)
-        clear       
+        clear
         echo "# Make sure the bitcoind wallet is on"
         /home/admin/config.scripts/network.wallet.sh on
-      
+
         restartCore=0
         if [ $allowIPrange -eq 0 ]; then
           echo "rpcallowip=$localIPrange" | sudo tee -a /mnt/hdd/${network}/${network}.conf
@@ -254,7 +265,7 @@ HiddenServicePort 8333 127.0.0.1:8333" | sudo tee -a /etc/tor/torrc
         clear
         echo "# Make sure the bitcoind wallet is on"
         /home/admin/config.scripts/network.wallet.sh on
-        /home/admin/config.scripts/internet.hiddenservice.sh bitcoin${BITCOINRPCPORT} ${BITCOINRPCPORT} ${BITCOINRPCPORT}
+        /home/admin/config.scripts/tor.onion-service.sh bitcoin${BITCOINRPCPORT} ${BITCOINRPCPORT} ${BITCOINRPCPORT}
         echo
         echo "The address of the local node is: $TorRPCaddress"
         echo
@@ -267,7 +278,7 @@ HiddenServicePort 8333 127.0.0.1:8333" | sudo tee -a /etc/tor/torrc
       CREDENTIALS)
         clear
         showRPCcredentials
-        echo          
+        echo
         echo "Press ENTER to return to the menu."
         read key
         ;;
@@ -275,7 +286,7 @@ HiddenServicePort 8333 127.0.0.1:8333" | sudo tee -a /etc/tor/torrc
         # remove old entry
         sudo sed -i "/# Hidden Service for BITCOIN RPC (mainnet, testnet, signet)/,/^\s*$/{d}" /etc/tor/torrc
         # remove Hidden Service
-        /home/admin/config.scripts/internet.hiddenservice.sh off bitcoin${BITCOINRPCPORT}
+        /home/admin/config.scripts/tor.onion-service.sh off bitcoin${BITCOINRPCPORT}
         sudo ufw deny from $localIPrange to any port ${BITCOINRPCPORT}
         restartCore=0
         if [ $allowIPrange -gt 0 ]; then

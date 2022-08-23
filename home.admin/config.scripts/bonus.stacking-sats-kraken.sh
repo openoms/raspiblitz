@@ -6,7 +6,6 @@ USERNAME=stackingsats
 APP_DATA_DIR=/mnt/hdd/app-data/stacking-sats-kraken
 HOME_DIR=/home/$USERNAME
 CONFIG_FILE=$APP_DATA_DIR/.env
-RASPIBLITZ_FILE=/mnt/hdd/raspiblitz.conf
 SCRIPT_DIR=$HOME_DIR/stacking-sats-kraken
 SCRIPT_NAME=stacksats.sh
 SCRIPT_VERSION=0.4.4
@@ -96,7 +95,10 @@ set -e
 export NODE_OPTIONS="--no-deprecation"
 
 # load config
-set -a; source /mnt/hdd/app-data/stacking-sats-kraken/.env; set +a
+env="/mnt/hdd/app-data/stacking-sats-kraken/.env"
+set -a; . ${env}; set +a
+# alternative config
+test -f "${env}-"${2} && { set -a; . "${env}-"${2}; set +a; }
 
 # switch directory
 cd $(cd `dirname $0` && pwd)
@@ -128,7 +130,7 @@ fi
     echo "Switch to the '$USERNAME' user and adapt the settings in $CONFIG_FILE"
 
     # setting value in raspi blitz config
-    grep -q '^stackingSatsKraken' $RASPIBLITZ_FILE && sudo sed -i "s/^stackingSatsKraken=.*/stackingSatsKraken=on/g" $RASPIBLITZ_FILE || echo 'stackingSatsKraken=on' >> $RASPIBLITZ_FILE
+    /home/admin/config.scripts/blitz.conf.sh set stackingSatsKraken "on"
   else
     echo "STACKING-SATS-KRAKEN already installed."
   fi
@@ -158,7 +160,7 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
     echo "*** REMOVING STACKING-SATS-KRAKEN ***"
 
     # setting value in raspi blitz config
-    sudo sed -i "s/^stackingSatsKraken=.*/stackingSatsKraken=off/g" $RASPIBLITZ_FILE
+    /home/admin/config.scripts/blitz.conf.sh set stackingSatsKraken "off"
 
     # remove config
     sudo rm -rf $APP_DATA_DIR

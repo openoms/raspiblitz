@@ -20,7 +20,6 @@ if [ "${network}" == "" ]; then
 
     OPTIONS=()
     OPTIONS+=(BITCOIN "Setup BITCOIN Blockchain (BitcoinCore)")
-    OPTIONS+=(LITECOIN "Setup LITECOIN Blockchain (experimental)")
     CHOICE=$(dialog --clear \
                 --backtitle "RaspiBlitz ${codeVersion} - Setup" \
                 --title "⚡ Blockchain ⚡" \
@@ -33,12 +32,6 @@ if [ "${network}" == "" ]; then
         BITCOIN)
             # bitcoin core
             network="bitcoin"
-            ;;
-        LITECOIN)
-            # litecoin
-            network="litecoin"
-            # can only work with LND
-            lightning="lnd"
             ;;
         *)
             clear
@@ -57,7 +50,7 @@ if [ "${network}" == "bitcoin" ]; then
      # choose lightning client
     OPTIONS=()
     OPTIONS+=(LND "LND - Lightning Network Daemon (DEFAULT)")
-    OPTIONS+=(CL "C-lightning by Blockstream (NEW)")
+    OPTIONS+=(CLN "Core Lightning by Blockstream (NEW)")
     OPTIONS+=(NONE "Run without Lightning")
     CHOICE=$(dialog --clear \
                 --backtitle "RaspiBlitz ${codeVersion} - Setup" \
@@ -71,7 +64,7 @@ if [ "${network}" == "bitcoin" ]; then
         LND)
             lightning="lnd"
             ;;
-        CL)
+        CLN)
             lightning="cl"
             ;;
         NONE)

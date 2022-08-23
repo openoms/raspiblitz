@@ -17,7 +17,7 @@ fi
 mode="$1"
 
 # RECOMMENDED UPDATE BY RASPIBLITZ TEAM
-# comment will be shown as "BEWARE Info" when option is choosen (can be multiple lines) 
+# comment will be shown as "BEWARE Info" when option is choosen (can be multiple lines)
 lndUpdateVersion="" # example: 0.13.2-beta .. keep empty if no newer version as sd card build is available
 lndUpdateComment="Please keep in mind that downgrading afterwards is not tested. Also not all additional apps are fully tested with the this update - but it looked good on first tests."
 
@@ -27,7 +27,7 @@ PGPauthor="roasbeef"
 lndUpdatePGPpkeys="https://keybase.io/roasbeef/pgp_keys.asc"
 lndUpdatePGPcheck="4AB7F8DA6FAEBB3B70B1F903BC13F65E2DC84465"
 
-# bitconner 
+# bitconner
 # PGPauthor="bitconner"
 # lndUpdatePGPpkeys="https://keybase.io/bitconner/pgp_keys.asc"
 # lndUpdatePGPcheck="9C8D61868A7C492003B2744EE7D737B67FA592C7"
@@ -59,6 +59,7 @@ fi
 
 # installed LND version
 lndInstalledVersion=$(sudo -u bitcoin lncli --version | cut -d " " -f3)
+# example: '0.14.1-beta'
 lndInstalledVersionMajor=$(echo "${lndInstalledVersion}" | cut -d "-" -f1 | cut -d "." -f1)
 lndInstalledVersionMain=$(echo "${lndInstalledVersion}" | cut -d "-" -f1 | cut -d "." -f2)
 lndInstalledVersionMinor=$(echo "${lndInstalledVersion}" | cut -d "-" -f1 | cut -d "." -f3)
@@ -96,6 +97,24 @@ if [ "${mode}" = "info" ]; then
   exit 1
 fi
 
+function installLND() {
+  # install
+  echo "# stopping LND"
+  sudo systemctl stop lnd
+  echo "# unzip LND binary"
+  sudo -u admin tar -xzf ${binaryName}
+  # removing the tar.gz ending from the binary
+  directoryName="${binaryName%.*.*}"
+  echo "# install binary directory '${directoryName}'"
+  sudo install -m 0755 -o root -g root -t /usr/local/bin ${directoryName}/*
+  sleep 3
+  installed=$(sudo -u admin lnd --version)
+  if [ ${#installed} -eq 0 ]; then
+    echo "error='install failed'"
+    exit 1
+  fi
+}
+
 # verified
 if [ "${mode}" = "verified" ]; then
 
@@ -103,21 +122,21 @@ if [ "${mode}" = "verified" ]; then
 
   # check for optional second parameter: forced update version
   # --> only does the verified update if its the given version
-  # this is needed for recovery/update. 
+  # this is needed for recovery/update.
   fixedUpdateVersion="$2"
   if [ ${#fixedUpdateVersion} -gt 0 ]; then
     echo "# checking for fixed version update: askedFor(${fixedUpdateVersion}) available(${lndUpdateVersion})"
     if [ "${fixedUpdateVersion}" != "${lndUpdateVersion}" ]; then
       echo "warn='required update version does not match'"
       echo "# this is normal when the recovery script of a new RaspiBlitz version checks for an old update - just ignore"
-      sed -i '/^lndInterimsUpdate=*/d' /mnt/hdd/raspiblitz.conf
+      /home/admin/config.scripts/blitz.conf.sh delete lndInterimsUpdate
       exit 1
     else
       echo "# OK - update version is matching"
     fi
   fi
 
-  echo 
+  echo
   echo "# clean & change into download directory"
   sudo rm -r ${downloadDir}/*
   cd "${downloadDir}" || exit 1
@@ -156,21 +175,21 @@ if [ "${mode}" = "verified" ]; then
     exit 1
   fi
 
-  echo 
+  echo
   echo "# getting gpg finger print"
-  gpg ./pgp_keys.asc
-  fingerprint=$(sudo gpg "${downloadDir}/pgp_keys.asc" 2>/dev/null | grep "${lndUpdatePGPcheck}" -c)
+  gpg --show-keys ./pgp_keys.asc
+  fingerprint=$(sudo gpg --show-keys "${downloadDir}/pgp_keys.asc" 2>/dev/null | grep "${lndUpdatePGPcheck}" -c)
   if [ ${fingerprint} -lt 1 ]; then
     echo "error='PGP author check failed'"
     exit 1
   fi
   echo "fingerprint='${fingerprint}'"
 
-  echo 
+  echo
   echo "# checking PGP finger print"
   gpg --import ./pgp_keys.asc
   sleep 3
-  verifyResult=$(gpg --verify manifest-${PGPauthor}-v${lndUpdateVersion}.sig manifest-v${lndUpdateVersion}.txt 2>&1)
+  verifyResult=$(LANG=en_US.utf8; gpg --verify manifest-${PGPauthor}-v${lndUpdateVersion}.sig manifest-v${lndUpdateVersion}.txt 2>&1)
   goodSignature=$(echo ${verifyResult} | grep 'Good signature' -c)
   echo "goodSignature='${goodSignature}'"
   correctKey=$(echo ${verifyResult} | tr -d " \t\n\r" | grep "${lndUpdatePGPcheck}" -c)
@@ -183,6 +202,8 @@ if [ "${mode}" = "verified" ]; then
   # note: install will be done the same as reckless further down
   lndInterimsUpdateNew="${lndUpdateVersion}"
 
+  installLND
+
 fi
 
 # RECKLESS
@@ -192,56 +213,46 @@ fi
 if [ "${mode}" = "reckless" ]; then
 
   echo "# lnd.update.sh reckless"
+  # only update if the latest release is different from the installed
+  if [ "v${lndInstalledVersion}" = "${lndLatestVersion}" ]; then
+    # attention to leading 'v'
+    echo "# lndInstalledVersion = lndLatestVersion (${lndLatestVersion:1})"
+    echo "# There is no need to update again."
+    lndInterimsUpdateNew="${lndLatestVersion:1}"
+  else
+    # check that download link has a value
+    if [ ${#lndLatestDownload} -eq 0 ]; then
+      echo "error='no download link'"
+      exit 1
+    fi
 
-  # check that download link has a value
-  if [ ${#lndLatestDownload} -eq 0 ]; then
-    echo "error='no download link'"
-    exit 1
+    # clean & change into download directory
+    sudo rm -r ${downloadDir}/*
+    cd "${downloadDir}" || exit 1
+
+    # download binary
+    echo "# downloading binary"
+    binaryName=$(basename "${lndLatestDownload}")
+    sudo -u admin wget -N ${lndLatestDownload}
+    checkDownload=$(ls ${binaryName} 2>/dev/null | grep -c ${binaryName})
+    if [ ${checkDownload} -eq 0 ]; then
+      echo "error='download binary failed'"
+      exit 1
+    fi
+
+    # prepare install
+    lndInterimsUpdateNew="reckless"
+
+    installLND
+
   fi
-
-  # clean & change into download directory
-  sudo rm -r ${downloadDir}/*
-  cd "${downloadDir}" || exit 1
-
-  # download binary
-  echo "# downloading binary"
-  binaryName=$(basename "${lndLatestDownload}")
-  sudo -u admin wget -N ${lndLatestDownload}
-  checkDownload=$(ls ${binaryName} 2>/dev/null | grep -c ${binaryName})
-  if [ ${checkDownload} -eq 0 ]; then
-    echo "error='download binary failed'"
-    exit 1
-  fi
-
-  # prepare install
-  lndInterimsUpdateNew="reckless"
 fi
 
 # JOINED INSTALL (verified & RECKLESS)
 if [ "${mode}" = "verified" ] || [ "${mode}" = "reckless" ]; then
 
-  # install
-  echo "# stopping LND"
-  sudo systemctl stop lnd
-  echo "# unzip LND binary"
-  sudo -u admin tar -xzf ${binaryName}
-  # removing the tar.gz ending from the binary
-  directoryName="${binaryName%.*.*}"
-  echo "# install binary directory '${directoryName}'"
-  sudo install -m 0755 -o root -g root -t /usr/local/bin ${directoryName}/*
-  sleep 3
-  installed=$(sudo -u admin lnd --version)
-  if [ ${#installed} -eq 0 ]; then
-    echo "error='install failed'"
-    exit 1
-  fi
-  echo "# flag update in raspiblitz config"
-  source /mnt/hdd/raspiblitz.conf
-  if [ ${#lndInterimsUpdate} -eq 0 ]; then
-    echo "lndInterimsUpdate='${lndInterimsUpdateNew}'" >> /mnt/hdd/raspiblitz.conf
-  else
-    sudo sed -i "s/^lndInterimsUpdate=.*/lndInterimsUpdate='${lndInterimsUpdateNew}'/g" /mnt/hdd/raspiblitz.conf
-  fi
+  echo "# mark update in raspiblitz config"
+  /home/admin/config.scripts/blitz.conf.sh set lndInterimsUpdate "${lndInterimsUpdateNew}"
 
   echo "# OK LND Installed"
   echo "# NOTE: RaspiBlitz may need to reboot now"

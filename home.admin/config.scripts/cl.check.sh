@@ -21,6 +21,11 @@ source <(/home/admin/config.scripts/network.aliases.sh getvars cl $2)
 # so it tries to make sure the config is in valid shape
 ######################################################################
 
+# make sure plugins are loaded https://github.com/rootzoll/raspiblitz/issues/2953
+if [ $(grep -c "^plugin-dir=/home/bitcoin/${netprefix}cl-plugins-enabled" < ${CLCONF}) -eq 0 ];then
+  echo "plugin-dir=/home/bitcoin/${netprefix}cl-plugins-enabled" | tee -a ${CLCONF}
+fi
+
 # do not announce 127.0.0.1 https://github.com/rootzoll/raspiblitz/issues/2634
 if [ $(grep -c "^announce-addr=127.0.0.1" < ${CLCONF}) -gt 0 ];then
   sed -i "/^announce-addr=127.0.0.1/d" ${CLCONF}
@@ -32,7 +37,15 @@ if [ $(grep -c "^sparko" < ${CLCONF}) -gt 0 ];then
     echo "# The Sparko plugin is not present but in config"
     sed -i "/^sparko/d" ${CLCONF}
     rm -rf /home/bitcoin/${netprefix}cl-plugins-enabled/sparko
-    sed -i "s/^${netprefix}sparko=.*/${netprefix}sparko=off/g" /mnt/hdd/raspiblitz.conf
+  fi
+fi
+
+if [ $(grep -c "^clboss" < ${CLCONF}) -gt 0 ];then
+  if [ ! -f /home/bitcoin/${netprefix}cl-plugins-enabled/clboss ]\
+    || [ "$(eval echo \$${netprefix}clboss)" != "on" ]; then
+    echo "# The clboss plugin is not present but in config"
+    sed -i "/^clboss/d" ${CLCONF}
+    rm -rf /home/bitcoin/${netprefix}cl-plugins-enabled/clboss
   fi
 fi
 
@@ -42,7 +55,6 @@ if [ $(grep -c "^http-pass" < ${CLCONF}) -gt 0 ];then
     echo "# The clHTTPplugin is not present but in config"
     sed -i "/^http-pass/d" ${CLCONF}
     rm -rf /home/bitcoin/cl-plugins-enabled/c-lightning-http-plugin
-    sed -i "s/^clHTTPplugin=.*/clHTTPplugin=off/g" /mnt/hdd/raspiblitz.conf
   fi
 fi
 
@@ -52,6 +64,24 @@ if [ $(grep -c "^feeadjuster" < ${CLCONF}) -gt 0 ];then
     echo "# The feeadjuster plugin is not present but in config"
     sed -i "/^feeadjuster/d" ${CLCONF}
     rm -rf /home/bitcoin/${netprefix}cl-plugins-enabled/feeadjuster.py
-    sed -i "s/^${netprefix}feeadjuster=.*/${netprefix}feeadjuster=off/g" /mnt/hdd/raspiblitz.conf
+  fi
+fi
+
+# https://github.com/rootzoll/raspiblitz/issues/3007
+# add for test networks as well if needed on mainnet
+if [ "${blitzapi}" = "on" ] || \
+ [ "${LNBitsFunding}" = "${netprefix}cl" ] || \
+ [ "${BTCPayServer}" = "on" ]; then
+  if [ $(grep -c "^rpc-file-mode=0660" < ${CLCONF}) -eq 0 ]; then
+    echo "rpc-file-mode=0660" | tee -a ${CLCONF}
+  fi
+fi
+
+if [ $(grep -c "^grpc-port" < ${CLCONF}) -gt 0 ];then
+  if [ ! -f /home/bitcoin/${netprefix}cl-plugins-enabled/cln-grpc ]\
+    || [ "$(eval echo \$${netprefix}cln-grpc-port)" = "off" ]; then
+    echo "# The cln-grpc plugin is not present but in config"
+    sed -i "/^grpc-port/d" ${CLCONF}
+    rm -rf /home/bitcoin/${netprefix}cl-plugins-enabled/cln-grpc
   fi
 fi

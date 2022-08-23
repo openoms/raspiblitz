@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # https://github.com/romanz/electrs/releases
-ELECTRSVERSION="v0.9.2"
+ELECTRSVERSION="v0.9.7"
 # https://github.com/romanz/electrs/commits/master
 # ELECTRSVERSION="3041e89cd2fb377541b929d852ef6298c2d4e60a"
 
 # command info
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "config script to switch the Electrum Rust Server on or off"
- echo "bonus.electrs.sh status [?showAddress]"
+ echo "bonus.electrs.sh status -> dont call in loops"
+ echo "bonus.electrs.sh status-sync"
  echo "bonus.electrs.sh [on|off|menu]"
  echo "installs the version $ELECTRSVERSION"
  exit 1
@@ -20,11 +21,11 @@ PGPpubkeyFingerprint="87CAE5FA46917CBB"
 
 source /mnt/hdd/raspiblitz.conf
 
-# get local and global internet info
-source <(/home/admin/config.scripts/internet.sh status global)
-
-# give status
+# give status (dont call regularly - just on occasions)
 if [ "$1" = "status" ]; then
+
+  # get local and global internet info
+  source <(/home/admin/config.scripts/internet.sh status global)
 
   echo "##### STATUS ELECTRS SERVICE"
 
@@ -39,6 +40,57 @@ if [ "$1" = "status" ]; then
   if [ ${serviceInstalled} -eq 0 ]; then
     echo "infoSync='Service not installed'"
   fi
+
+  serviceRunning=$(sudo systemctl status electrs --no-page 2>/dev/null | grep -c "active (running)")
+  echo "serviceRunning=${serviceRunning}"
+  if [ ${serviceRunning} -eq 1 ]; then
+
+    # check local IPv4 port
+    echo "localIP='${localip}'"
+    echo "publicIP='${cleanip}'"
+    echo "portTCP='50001'"
+    localPortRunning=$(sudo netstat -an | grep -c '0.0.0.0:50001')
+    echo "localTCPPortActive=${localPortRunning}"
+
+    publicPortRunning=$(nc -z -w6 ${publicip} 50001 2>/dev/null; echo $?)
+    if [ "${publicPortRunning}" == "0" ]; then
+      # OK looks good - but just means that something is answering on that port
+      echo "publicTCPPortAnswering=1"
+    else
+      # no answer on that port
+      echo "publicTCPPortAnswering=0"
+    fi
+    echo "portSSL='50002'"
+    localPortRunning=$(sudo netstat -an | grep -c '0.0.0.0:50002')
+    echo "localHTTPPortActive=${localPortRunning}"
+    publicPortRunning=$(nc -z -w6 ${publicip} 50002 2>/dev/null; echo $?)
+    if [ "${publicPortRunning}" == "0" ]; then
+      # OK looks good - but just means that something is answering on that port
+      echo "publicHTTPPortAnswering=1"
+    else
+      # no answer on that port
+      echo "publicHTTPPortAnswering=0"
+    fi
+    # add TOR info
+    if [ "${runBehindTor}" == "on" ]; then
+      echo "TorRunning=1"
+      if [ "$2" = "showAddress" ]; then
+        TORaddress=$(sudo cat /mnt/hdd/tor/electrs/hostname)
+        echo "TORaddress='${TORaddress}'"
+      fi
+    else
+      echo "TorRunning=0"
+    fi
+    # check Nginx
+    nginxTest=$(sudo nginx -t 2>&1 | grep -c "test is successful")
+    echo "nginxTest=$nginxTest"
+
+  fi
+
+fi
+
+# give sync-status (can be called regularly)
+if [ "$1" = "status-sync" ] || [ "$1" = "status" ]; then
 
   serviceRunning=$(sudo systemctl status electrs --no-page 2>/dev/null | grep -c "active (running)")
   echo "serviceRunning=${serviceRunning}"
@@ -80,55 +132,12 @@ if [ "$1" = "status" ]; then
       echo "initialSynced=1"
     fi
 
-    # check local IPv4 port
-    echo "localIP='${localip}'"
-    if [ "$2" = "showAddress" ]; then
-      echo "publicIP='${cleanip}'"
-    fi
-    echo "portTCP='50001'"
-    localPortRunning=$(sudo netstat -an | grep -c '0.0.0.0:50001')
-    echo "localTCPPortActive=${localPortRunning}"
-
-    publicPortRunning=$(nc -z -w6 ${publicip} 50001 2>/dev/null; echo $?)
-    if [ "${publicPortRunning}" == "0" ]; then
-      # OK looks good - but just means that something is answering on that port
-      echo "publicTCPPortAnswering=1"
-    else
-      # no answer on that port
-      echo "publicTCPPortAnswering=0"
-    fi
-    echo "portSSL='50002'"
-    localPortRunning=$(sudo netstat -an | grep -c '0.0.0.0:50002')
-    echo "localHTTPPortActive=${localPortRunning}"
-    publicPortRunning=$(nc -z -w6 ${publicip} 50002 2>/dev/null; echo $?)
-    if [ "${publicPortRunning}" == "0" ]; then
-      # OK looks good - but just means that something is answering on that port
-      echo "publicHTTPPortAnswering=1"
-    else
-      # no answer on that port
-      echo "publicHTTPPortAnswering=0"
-    fi
-    # add TOR info
-    if [ "${runBehindTor}" == "on" ]; then
-      echo "TorRunning=1"
-      if [ "$2" = "showAddress" ]; then
-        TORaddress=$(sudo cat /mnt/hdd/tor/electrs/hostname)
-        echo "TORaddress='${TORaddress}'"
-      fi
-    else
-      echo "TorRunning=0"
-    fi
-    # check Nginx
-    nginxTest=$(sudo nginx -t 2>&1 | grep -c "test is successful")
-    echo "nginxTest=$nginxTest"
-
   else
     echo "tipSynced=0"
     echo "initialSynced=0"
     echo "electrumResponding=0"
     echo "infoSync='Not running - check: sudo journalctl -u electrs'"
   fi
-
   exit 0
 fi
 
@@ -136,7 +145,7 @@ if [ "$1" = "menu" ]; then
 
   # get status
   echo "# collecting status info ... (please wait)"
-  source <(sudo /home/admin/config.scripts/bonus.electrs.sh status showAddress)
+  source <(sudo /home/admin/config.scripts/bonus.electrs.sh status)
 
   if [ ${serviceInstalled} -eq 0 ]; then
     echo "# FAIL not installed"
@@ -162,7 +171,7 @@ This can take multiple hours.
       " 9 48
     exit 0
   fi
-  
+
   if [ ${nginxTest} -eq 0 ]; then
      dialog --title "Testing nginx.conf has failed" --msgbox "
 Nginx is in a failed state. Will attempt to fix.
@@ -201,7 +210,7 @@ Check 'sudo nginx -t' for a detailed error message.
     echo "- deactivate automatic server selection"
     echo "- as manual server set '${localip}' & '${portSSL}'"
     echo "- laptop and RaspiBlitz need to be within same local network"
-    echo 
+    echo
     echo "To start directly from laptop terminal use:"
     echo "electrum --oneserver --server ${localip}:${portSSL}:s"
     if [ ${TorRunning} -eq 1 ]; then
@@ -209,21 +218,21 @@ Check 'sudo nginx -t' for a detailed error message.
       echo "The Tor Hidden Service address for electrs is (see LCD for QR code):"
       echo "${TORaddress}"
       echo
-      echo "To connect through TOR open the Tor Browser and start with the options:" 
+      echo "To connect through TOR open the Tor Browser and start with the options:"
       echo "electrum --oneserver --server ${TORaddress}:50002:s --proxy socks5:127.0.0.1:9150"
-      /home/admin/config.scripts/blitz.display.sh qr "${TORaddress}"
+      sudo /home/admin/config.scripts/blitz.display.sh qr "${TORaddress}"
     fi
     echo
     echo "For more details check the RaspiBlitz README on ElectRS:"
     echo "https://github.com/rootzoll/raspiblitz"
-    echo 
+    echo
     echo "Press ENTER to get back to main menu."
     read key
-    /home/admin/config.scripts/blitz.display.sh hide
+    sudo /home/admin/config.scripts/blitz.display.sh hide
     ;;
     STATUS)
     sudo /home/admin/config.scripts/bonus.electrs.sh status
-    echo 
+    echo
     echo "Press ENTER to get back to main menu."
     read key
     ;;
@@ -237,18 +246,13 @@ Check 'sudo nginx -t' for a detailed error message.
     echo "# starting service"
     sudo systemctl start electrs
     echo "# ok"
-    echo 
+    echo
     echo "Press ENTER to get back to main menu."
     read key
     ;;
   esac
 
   exit 0
-fi
-
-# add default value to raspi config if needed
-if ! grep -Eq "^ElectRS=" /mnt/hdd/raspiblitz.conf; then
-  echo "ElectRS=off" >> /mnt/hdd/raspiblitz.conf
 fi
 
 # stop service
@@ -263,7 +267,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   if [ ${isInstalled} -eq 0 ]; then
 
     #cleanup
-    sudo rm -f /home/electrs/.electrs/config.toml 
+    sudo rm -f /home/electrs/.electrs/config.toml
 
     echo
     echo "# Creating the electrs user"
@@ -282,7 +286,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     echo "# Downloading and building electrs $ELECTRSVERSION. This will take ~40 minutes"
     echo
     sudo -u electrs git clone https://github.com/romanz/electrs
-    cd /home/electrs/electrs || exit 1 
+    cd /home/electrs/electrs || exit 1
     sudo -u electrs git reset --hard $ELECTRSVERSION
     sudo -u electrs /home/admin/config.scripts/blitz.git-verify.sh \
      "${PGPsigner}" "${PGPpubkeyLink}" "${PGPpubkeyFingerprint}" || exit 1
@@ -307,15 +311,15 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     # generate setting file: https://github.com/romanz/electrs/issues/170#issuecomment-530080134
     # https://github.com/romanz/electrs/blob/master/doc/usage.md#configuration-files-and-environment-variables
     sudo -u electrs mkdir /home/electrs/.electrs 2>/dev/null
-    echo "
-verbose = 2
+    echo "\
+log_filters = \"INFO\"
 timestamp = true
 jsonrpc_import = true
 index-batch-size = 10
 wait_duration_secs = 10
 jsonrpc_timeout_secs = 15
 db_dir = \"/mnt/hdd/app-storage/electrs/db\"
-auth = \"$RPC_USER:$PASSWORD_B\"
+auth = \"${RPC_USER}:${PASSWORD_B}\"
 # allow BTC-RPC-explorer show tx-s for addresses with a history of more than 100
 txid_limit = 1000
 server_banner = \"Welcome to electrs $ELECTRSVERSION - the Electrum Rust Server on your RaspiBlitz\"
@@ -396,7 +400,7 @@ stream {
     echo
     echo "# Installing the systemd service"
     echo
-    # sudo nano /etc/systemd/system/electrs.service 
+    # sudo nano /etc/systemd/system/electrs.service
     echo "
 [Unit]
 Description=Electrs
@@ -424,17 +428,17 @@ WantedBy=multi-user.target
     sudo systemctl enable electrs
     # manual start:
     # sudo -u electrs /home/electrs/.cargo/bin/cargo run --release -- --index-batch-size=10 --electrum-rpc-addr="0.0.0.0:50001"
-  else 
+  else
     echo "# ElectRS is already installed."
   fi
 
   # setting value in raspiblitz config
-  sudo sed -i "s/^ElectRS=.*/ElectRS=on/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set ElectRS "on"
 
   # Hidden Service for electrs if Tor active
   if [ "${runBehindTor}" = "on" ]; then
-    # make sure to keep in sync with internet.tor.sh script
-    /home/admin/config.scripts/internet.hiddenservice.sh electrs 50002 50002 50001 50001
+    # make sure to keep in sync with tor.network.sh script
+    /home/admin/config.scripts/tor.onion-service.sh electrs 50002 50002 50001 50001
   fi
 
   # whitelist downloading to localhost from bitcoind
@@ -443,7 +447,7 @@ WantedBy=multi-user.target
     bitcoindRestart=yes
   fi
 
-  source /home/admin/raspiblitz.info
+  source <(/home/admin/_cache.sh get state)
   if [ "${state}" == "ready" ]; then
     if [ "${bitcoindRestart}" == "yes" ]; then
       sudo systemctl restart bitcoind
@@ -460,7 +464,7 @@ WantedBy=multi-user.target
   echo
   echo "# To connect through SSL from outside of the local network make sure the port 50002 is forwarded on the router"
   echo
-  
+
   exit 0
 fi
 
@@ -468,7 +472,7 @@ fi
 if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # setting value in raspiblitz config
-  sudo sed -i "s/^ElectRS=.*/ElectRS=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set ElectRS "off"
 
   # if second parameter is "deleteindex"
   if [ "$2" == "deleteindex" ]; then
@@ -478,7 +482,7 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # Hidden Service if Tor is active
   if [ "${runBehindTor}" = "on" ]; then
-    /home/admin/config.scripts/internet.hiddenservice.sh off electrs
+    /home/admin/config.scripts/tor.onion-service.sh off electrs
   fi
 
   isInstalled=$(sudo ls /etc/systemd/system/electrs.service 2>/dev/null | grep -c 'electrs.service')
@@ -488,10 +492,10 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
     sudo systemctl disable electrs
     sudo rm /etc/systemd/system/electrs.service
     # delete user and home directory
-    sudo userdel -rf electrs 
+    sudo userdel -rf electrs
     # close ports on firewall
     sudo ufw deny 50001
-    sudo ufw deny 50002 
+    sudo ufw deny 50002
     echo "# OK ElectRS removed."
 
     # restart BTC-RPC-Explorer to reconfigure itself to use electrs for address API
@@ -499,8 +503,8 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
       sudo systemctl restart btc-rpc-explorer
       echo "# BTC-RPC-Explorer restarted"
     fi
-    
-  else 
+
+  else
     echo "# ElectRS is not installed."
   fi
   exit 0

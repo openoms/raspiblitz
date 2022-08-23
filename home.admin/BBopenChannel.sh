@@ -33,9 +33,9 @@ if [ ${chainOutSync} -eq 1 ]; then
   if [ $LNTYPE = cl ];then
     echo "# FAIL PRECHECK - 'lightning-cli getinfo' blockheight is different from 'bitcoind getblockchaininfo' - wait until chain is sync "
   elif [ $LNTYPE = lnd ];then
-    echo "# FAIL PRECHECK - lncli getinfo shows 'synced_to_chain': false - wait until chain is sync "  
+    echo "# FAIL PRECHECK - lncli getinfo shows 'synced_to_chain': false - wait until chain is sync "
   fi
-  echo 
+  echo
   echo "# PRESS ENTER to return to menu"
   read key
   exit 0
@@ -50,7 +50,7 @@ if [ $LNTYPE = cl ];then
     confirmedBalance=$((confirmedBalance+i))
   done
 elif [ $LNTYPE = lnd ];then
-  confirmedBalance=$($lncli_alias walletbalance | grep '"confirmed_balance"' | cut -d '"' -f4)
+  confirmedBalance=$($lncli_alias walletbalance | jq -r .confirmed_balance)
 fi
 
 if [ ${confirmedBalance} -eq 0 ]; then
@@ -78,6 +78,11 @@ if [ ${numConnectedPeers} -eq 0 ]; then
   read key
   exit 0
 fi
+
+# raise high focus on lightning channels next 1 hour
+/home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_channels_pending 0 3600
+/home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_channels_total 0 3600
+/home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_channels_active 0 3600
 
 # let user pick a peer to open a channels with
 OPTIONS=()
@@ -108,13 +113,13 @@ pubKey=$(dialog --clear \
 clear
 if [ ${#pubKey} -eq 0 ]; then
   clear
-  echo 
+  echo
   echo "no channel selected - returning to menu ..."
   sleep 4
   exit 0
 fi
 
-# find out what is the minimum amount 
+# find out what is the minimum amount
 # TODO find a better way - also consider dust and channel reserve
 # details see here: https://github.com/btcontract/lnwallet/issues/52
 minSat=20000
@@ -186,9 +191,9 @@ error=$(cat ${_error})
 #echo "error(${error})"
 
 if [ ${#error} -gt 0 ]; then
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "FAIL"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "${error}"
 else
   echo "******************************"
@@ -217,9 +222,6 @@ else
     elif [ "${chain}" = "test" ]||[ "${chain}" = "sig" ]; then
       echo "http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/${chain}net/tx/${fundingTX}"
     fi
-  fi
-  if [ "${network}" = "litecoin" ]; then
-    echo "https://live.blockcypher.com/ltc/tx/${fundingTX}/"
   fi
 fi
 echo

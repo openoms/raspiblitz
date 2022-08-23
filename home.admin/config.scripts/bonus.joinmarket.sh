@@ -5,31 +5,14 @@
 # https://github.com/openoms/bitcoin-tutorials/tree/master/joinmarket
 # https://github.com/openoms/joininbox
 
-JBVERSION="v0.6.3" # with JoinMarket v0.9.3
+JBVERSION="v0.6.8" # installs JoinMarket v0.9.6
 
 # command info
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "JoinMarket install script to switch JoinMarket on or off"
  echo "sudo /home/admin/config.scrips/bonus.joinmarket.sh on|off"
- echo "Installs JoininBox $JBVERSION"
+ echo "Installs JoininBox $JBVERSION with JoinMarket v0.9.5"
  exit 1
-fi
-
-PGPsigner="openoms"
-PGPpubkeyLink="https://github.com/openoms.gpg"
-PGPpubkeyFingerprint="13C688DB5B9C745DE4D2E4545BFB77609B081B65"
-
-# check if sudo
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root (with sudo)"
-  exit
-fi
-
-source /mnt/hdd/raspiblitz.conf
-
-# add default value to raspi config if needed
-if ! grep -Eq "^joinmarket=" /mnt/hdd/raspiblitz.conf; then
-  echo "joinmarket=off" >> /mnt/hdd/raspiblitz.conf
 fi
 
 # show info menu
@@ -42,6 +25,18 @@ https://github.com/openoms/bitcoin-tutorials/blob/master/joinmarket/README.md
 " 11 81
   exit 0
 fi
+
+# check if sudo
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root (with sudo)"
+  exit
+fi
+
+PGPsigner="openoms"
+PGPpubkeyLink="https://github.com/openoms.gpg"
+PGPpubkeyFingerprint="13C688DB5B9C745DE4D2E4545BFB77609B081B65"
+
+source /mnt/hdd/raspiblitz.conf
 
 # switch on
 if [ "$1" = "1" ] || [ "$1" = "on" ]; then
@@ -58,6 +53,22 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
 
   # make sure the Bitcoin Core wallet is on
   /home/admin/config.scripts/network.wallet.sh on
+  if [ $(/usr/local/bin/bitcoin-cli -conf=/mnt/hdd/bitcoin/bitcoin.conf listwallets | grep -c wallet.dat) -eq 0 ];then
+    echo "# Create a non-descriptor wallet.dat"
+    /usr/local/bin/bitcoin-cli -conf=/mnt/hdd/bitcoin/bitcoin.conf -named createwallet wallet_name=wallet.dat descriptors=false
+  else
+    isDescriptor=$(/usr/local/bin/bitcoin-cli -conf=/mnt/hdd/bitcoin/bitcoin.conf -rpcwallet=wallet.dat getwalletinfo | grep -c '"descriptors": true,')
+    if [ "$isDescriptor" -gt 0 ]; then
+      # unload
+      bitcoin-cli unloadwallet wallet.dat
+      echo "# Move the wallet.dat with descriptors to /mnt/hdd/bitcoin/descriptors"
+      sudo mv /mnt/hdd/bitcoin/wallet.dat /mnt/hdd/bitcoin/descriptors
+      echo "# Create a non-descriptor wallet.dat"
+      bitcoin-cli -conf=/mnt/hdd/bitcoin/bitcoin.conf -named createwallet wallet_name=wallet.dat descriptors=false
+    else
+      echo "# The non-descriptor wallet.dat is loaded in bitcoind."
+    fi
+  fi
 
   if [ ! -f "/home/joinmarket/joinmarket-clientserver/jmvenv/bin/activate" ] ; then
 
@@ -74,8 +85,8 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     adduser joinmarket sudo
     # configure sudo for usage without password entry for the joinmarket user
     echo 'joinmarket ALL=(ALL) NOPASSWD:ALL' | EDITOR='tee -a' visudo
-    
-    # make a folder for authorized keys 
+
+    # make a folder for authorized keys
     sudo -u joinmarket mkdir -p /home/joinmarket/.ssh
     chmod -R 700 /home/joinmarket/.ssh
 
@@ -124,11 +135,10 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
       echo "CookieAuthentication 1" | sudo tee -a /etc/tor/torrc
       sudo systemctl reload tor@default
     fi
-    if ! grep -Eq "^AllowOutboundLocalhost 1" /etc/tor/torsocks.conf; then          
+    if ! grep -Eq "^AllowOutboundLocalhost 1" /etc/tor/torsocks.conf; then
       echo "AllowOutboundLocalhost 1" | sudo tee -a /etc/tor/torsocks.conf
       sudo systemctl reload tor@default
     fi
-
     # joinin.conf settings
     sudo -u joinmarket touch /home/joinmarket/joinin.conf
     # add default Tor value to joinin.conf if needed
@@ -139,20 +149,21 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     if grep -Eq "^runBehindTor=on" /mnt/hdd/raspiblitz.conf; then
       sudo -u joinmarket sed -i "s/^runBehindTor=.*/runBehindTor=on/g" /home/joinmarket/joinin.conf
     fi
-    echo 
+
+    echo
     echo "##########"
     echo "# Extras #"
     echo "##########"
-    echo 
+    echo
     # install a command-line fuzzy finder (https://github.com/junegunn/fzf)
     apt -y install fzf
     bash -c "echo 'source /usr/share/doc/fzf/examples/key-bindings.bash' >> \
     /home/joinmarket/.bashrc"
-    
+
     # install tmux
     apt -y install tmux
-    
-    echo 
+
+    echo
     echo "#############"
     echo "# Autostart #"
     echo "#############"
@@ -171,25 +182,26 @@ if [ -z \"\$TMUX\" ]; then
 fi
 "   | sudo -u joinmarket tee -a /home/joinmarket/.bashrc
 
-    echo "######################"
-    echo "# Install JoinMarket #"
-    echo "######################"
-    sudo -u joinmarket /home/joinmarket/install.joinmarket.sh install
+    echo "##############################################"
+    echo "# Install JoinMarket and configure JoininBox #"
+    echo "##############################################"
+    echo
+    sudo -u joinmarket /home/joinmarket/start.joininbox.sh
 
   else
     echo "JoinMarket is already installed"
     echo
-  fi    
-  
+  fi
+
   if [ -f "/home/joinmarket/joinmarket-clientserver/jmvenv/bin/activate" ] ; then
     # setting value in raspi blitz config
-    sudo sed -i "s/^joinmarket=.*/joinmarket=on/g" /mnt/hdd/raspiblitz.conf
+    /home/admin/config.scripts/blitz.conf.sh set joinmarket "on"
     # starting info
     echo
     echo "# Start to use by logging in to the 'joinmarket' user with:"
     echo "# 'sudo su joinmarket' or use the shortcut 'jm'"
     echo
-  
+
   else
     echo " Failed to install JoinMarket"
     exit 1
@@ -202,13 +214,13 @@ fi
 if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^joinmarket=.*/joinmarket=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set joinmarket "off"
 
   if [ -f "/home/joinmarket/joinmarket-clientserver/jmvenv/bin/activate" ] ; then
     echo "# REMOVING JOINMARKET"
     sudo userdel -rf joinmarket 2>/dev/null
     echo "# OK JoinMarket is removed"
-  else 
+  else
     echo "JoinMarket is not installed."
   fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # https://github.com/prusnak/suez/commits/master
-SUEZVERSION="335d43029cdb9da42b5ad55ad2df4cdfeafe0405"
+SUEZVERSION="e402edbddb45d8a53af346b8582243f4068ece6c"
 
 # command info
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
@@ -16,11 +16,6 @@ PGPpubkeyLink="https://github.com/${PGPsigner}.gpg"
 PGPpubkeyFingerprint="91F3B339B9A02A3D"
 
 source /mnt/hdd/raspiblitz.conf
-
-# add default value to raspi config if needed
-if ! grep -Eq "^suez=" /mnt/hdd/raspiblitz.conf; then
-  echo "suez=off" >> /mnt/hdd/raspiblitz.conf
-fi
 
 # show info menu
 if [ "$1" = "menu" ]; then
@@ -37,26 +32,27 @@ fi
 if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   echo "# INSTALL SUEZ"
 
-  cd /home/bitcoin || exit 1 
+  cd /home/bitcoin || exit 1
 
   # dependency
   sudo -u bitcoin curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py\
     | sudo -u bitcoin python -
-  
+
   # download source code
   sudo -u bitcoin git clone https://github.com/prusnak/suez.git
-  cd suez || exit 1 
+  cd suez || exit 1
   sudo -u bitcoin git reset --hard $SUEZVERSION
   sudo -u bitcoin /home/admin/config.scripts/blitz.git-verify.sh \
    "${PGPsigner}" "${PGPpubkeyLink}" "${PGPpubkeyFingerprint}" || exit 1
   sudo -u bitcoin /home/bitcoin/.local/bin/poetry install
 
   echo "# Adding alias"
+  sudo -u admin touch /home/admin/_aliases
   echo "alias suez='cd /home/bitcoin/suez && sudo -u bitcoin /home/bitcoin/.local/bin/poetry run ./suez'"\
    | sudo tee -a /home/admin/_aliases
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^suez=.*/suez=on/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set suez "on"
 
   echo "# To use the alias in /home/admin/_aliases:"
   echo "source /home/admin/_aliases"
@@ -75,7 +71,7 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
   echo "# OK, suez is removed."
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^suez=.*/suez=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set suez "off"
 
   exit 0
 
@@ -84,7 +80,7 @@ fi
 # update
 if [ "$1" = "update" ]; then
   echo "# UPDATE SUEZ"
-  cd /home/bitcoin || exit 1 
+  cd /home/bitcoin || exit 1
   # dependency
   sudo -u bitcoin curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py\
     | sudo -u bitcoin python -

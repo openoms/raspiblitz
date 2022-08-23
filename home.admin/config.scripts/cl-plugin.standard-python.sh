@@ -3,7 +3,7 @@
 # command info
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ];then
   echo
-  echo "Install and show the output of the chosen plugin for C-lightning"
+  echo "Install and show the output of the chosen plugin for Core Lightning"
   echo "Usage:"
   echo "cl-plugin.standard-python.sh on [plugin-name] <testnet|mainnet|signet> <persist|runonce>"
   echo
@@ -35,7 +35,7 @@ if [ "$1" = "on" ];then
       sudo ln -s /home/bitcoin/cl-plugins-available/plugins/${plugin}/${plugin}.py \
                  /home/bitcoin/${netprefix}cl-plugins-enabled
       
-      source /home/admin/raspiblitz.info
+      source <(/home/admin/_cache.sh get state)
       if [ "${state}" == "ready" ]; then
         echo "# Restart the ${netprefix}lightningd.service to activate the ${plugin} plugin"
         sudo systemctl restart ${netprefix}lightningd

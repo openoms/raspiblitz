@@ -8,23 +8,12 @@
 echo "Starting SSH user interface ... (please wait)"
 
 # CONFIGFILE - configuration of RaspiBlitz
-configFile="/mnt/hdd/raspiblitz.conf"
-source ${configFile} 2>/dev/null
+source /mnt/hdd/raspiblitz.conf 2>/dev/null
 
 # INFOFILE - state data from bootstrap
 infoFile="/home/admin/raspiblitz.info"
-
-# check if raspiblitz.info exists
-systemInfoExists=$(ls ${infoFile} | grep -c "${infoFile}")
-if [ "${systemInfoExists}" != "1" ]; then
-  echo "systemInfoExists(${systemInfoExists})"
-  echo "FAIL: ${infoFile} does not exist .. which it should at this point."
-  echo "Check logs & bootstrap.service for errors and report to devs."
-  exit 1
-fi
-
-# get system state information raspiblitz.info
 source ${infoFile}
+source <(/home/admin/_cache.sh get state message)
 
 # check that basic system phase/state information is available
 if [ "${setupPhase}" == "" ] || [ "${state}" == "" ]; then
@@ -74,20 +63,27 @@ if [ "${state}" = "copystation" ]; then
   exit
 fi
 
-# prepare status file
-# TODO: this is to be replaced and unified together with raspiblitz.info
-# when we move to a background monitoring thread & redis for WebUI with v1.8
-sudo touch /var/cache/raspiblitz/raspiblitz.status
-sudo chown admin:admin /var/cache/raspiblitz/raspiblitz.status
-sudo chmod 740 /var/cache/raspiblitz/raspiblitz.status
-
 #####################################
 # SSH MENU LOOP
 # this loop runs until user exits or
 # an error drops user to terminal
 #####################################
 
+# listen to CTRL-c & CTRL-z to break loop
+quit() {
+  echo "SIGINT or SIGTERM received, exiting..."
+  kill -9 $$
+}
+trap quit INT
+trap quit TERM
+
 echo "# start ssh menu loop"
+# put some values on higher scan rate for 10 minute
+/home/admin/_cache.sh focus ln_default_ready 2 600 >/dev/null
+/home/admin/_cache.sh focus ln_default_locked 2 600 >/dev/null
+/home/admin/_cache.sh focus btc_default_synced 2 600 >/dev/null
+
+echo "# starting ssh menu loop ... "
 exitMenuLoop=0
 doneIBD=0
 while [ ${exitMenuLoop} -eq 0 ]
@@ -97,56 +93,50 @@ do
   # Access fresh system info on every loop
 
   # refresh system state information
-  source ${infoFile}
+  source <(/home/admin/_cache.sh get \
+    systemscan_runtime \
+    state \
+    setupPhase \
+    btc_default_synced \
+    ln_default_sync_chain \
+    ln_default_locked \
+    ln_default_ready \
+    ln_default_sync_initial_done \
+    message \
+    network \
+    chain \
+    lightning \
+    internet_localip \
+    system_vm_vagrant \
+  )
 
-  # gather fresh status scan and store results in memory
-  # TODO: move this into background loop and unify with redis data storage later
-  #echo "# blitz.statusscan.sh"
-
-  firstStatusScanExists=$(ls /var/cache/raspiblitz/raspiblitz.status | grep -c "raspiblitz.status")
-  #echo "firstStatusScanExists(${firstStatusScanExists})"
-  if [ ${firstStatusScanExists} -eq 1 ]; then
-
-    # run statusscan with timeout - if status scan was not killed it will copy over the 
-    timeout 15 /home/admin/config.scripts/blitz.statusscan.sh ${lightning} > /var/cache/raspiblitz/raspiblitz.status.tmp
-    result=$?
-    #echo "result(${result})"
-    if [ "${result}" == "0" ]; then
-     # statusscan finished in under 10 seconds - use results
-     cp /var/cache/raspiblitz/raspiblitz.status.tmp /var/cache/raspiblitz/raspiblitz.status
-    else
-     # statusscan blocked and was killed - fallback to old results
-     echo "statusscan blocked (${result}) - fallback to old results"
-     sleep 1
-    fi 
-  
-  else
-  
-    # first time run statusscan without timeout
-    echo "# running statusscan for the first time ... can take time"
-    /home/admin/config.scripts/blitz.statusscan.sh ${lightning} > /var/cache/raspiblitz/raspiblitz.status 
-
+  # background.scan is not ready yet
+  if [ "${systemscan_runtime}" == "" ]; then
+    echo "# background.scan not ready yet ... (please wait)"
+    sleep 4
+    continue
   fi
-
-  # load statusscan results
-  source /var/cache/raspiblitz/raspiblitz.status 2>/dev/null
 
   #####################################
   # ALWAYS: Handle System States 
   #####################################
 
   ############################
-  # LND Wallet Unlock
+  # Wallet Unlock
 
-  if [ "${lndActive}" == "1" ] && [ "${walletLocked}" == "1" ] && [ "${state}" == "ready" ] && [ "${setupPhase}" == "done" ]; then
-    #echo "# lnd.unlock.sh"
-    /home/admin/config.scripts/lnd.unlock.sh
-  fi
+  if [ "${state}" == "ready" ] && [ "${setupPhase}" == "done" ] && [ "${ln_default_locked}" == "1" ]; then
 
-  # CL Wallet Unlock 
-  if [ "${CLwalletLocked}" == "1" ] && [ "${state}" == "ready" ] && [ "${setupPhase}" == "done" ]; then
-    /home/admin/config.scripts/cl.hsmtool.sh unlock
-    sleep 5
+    # unlock lnd
+    if [ "${lightning}" == "lnd" ]; then
+      /home/admin/config.scripts/lnd.unlock.sh
+    fi
+
+    # unlock c-lightning
+    if [ "${lightning}" == "cl" ]; then
+      /home/admin/config.scripts/cl.hsmtool.sh unlock
+      sleep 5
+    fi
+
   fi
 
   #####################################
@@ -186,7 +176,7 @@ do
     echo "***********************************************************"
     if [ "${state}" == "reboot" ]; then
       echo "SSH again into system with:"
-      echo "ssh admin@${localip}"
+      echo "ssh admin@${internet_localip}"
       echo "Use your password A"
       echo "***********************************************************"
     fi
@@ -195,13 +185,82 @@ do
   fi
 
   #####################################
-  # INITIAL BLOCKCHAIN SYNC (SUBLOOP)
+  # MAKE SURE BLOCKCHAIN/LN IS SYNC 
   #####################################
-  if [ "${lightning}" == "" ]; then syncedToChain=1; fi
-  if [ "${setupPhase}" == "done" ] && [ "${state}" == "ready" ] && [ "${syncedToChain}" != "1" ]; then
-    /home/admin/setup.scripts/eventBlockchainSync.sh ssh
-    sleep 10
-    continue
+  if [ "${setupPhase}" == "done" ] && [ "${state}" == "ready" ]; then
+    if [ "${lightning}" = "cl" ]; then
+      if [ "${btc_default_synced}" != "1" ] || [ "${ln_default_ready}" == "0" ] || [ "${ln_default_sync_chain}" == "0" ]; then
+        /home/admin/setup.scripts/eventBlockchainSync.sh ssh
+        sleep 3
+        continue
+      fi
+    else
+      if [ "${btc_default_synced}" != "1" ] || [ "${ln_default_ready}" == "0" ] || [ "${ln_default_sync_chain}" == "0" ] || [ "${ln_default_sync_initial_done}" == "0" ]; then
+        /home/admin/setup.scripts/eventBlockchainSync.sh ssh
+        sleep 3
+        continue
+      fi
+    fi
+  fi
+
+  #####################################
+  # SCB ACTIVATION
+  #####################################
+
+  # when setup is done & state is ready .. check for SCB activation
+  if [ "${setupPhase}" == "done" ] && [ "${state}" == "ready" ]; then
+
+    # check if there is a channel.backup to activate
+    gotSCB=$(ls /home/admin/channel.backup 2>/dev/null | grep -c 'channel.backup')
+    if [ "${gotSCB}" == "1" ]; then
+
+      clear
+      echo
+      echo "*** channel.backup Recovery ***"
+      echo "Running ... (please wait)"
+      lncli --chain=${network} restorechanbackup --multi_file=/home/admin/channel.backup 2>/home/admin/.error.tmp
+      error=`cat /home/admin/.error.tmp`
+      rm /home/admin/.error.tmp 2>/dev/null
+
+      if [ ${#error} -gt 0 ]; then
+
+        # output error message
+        echo ""
+        echo "# FAIL # SOMETHING WENT WRONG:"
+        echo "${error}"
+
+        # check if its possible to give background info on the error
+        notMachtingSeed=$(echo $error | grep -c 'unable to unpack chan backup')
+        if [ ${notMachtingSeed} -gt 0 ]; then
+          echo "--> ERROR BACKGROUND:"
+          echo "The WORD SEED is not matching the channel.backup file."
+          echo "Either there was an error in the word seed list or"
+          echo "or the channel.backup file is from another RaspiBlitz."
+          echo 
+        fi
+
+        # basic info on error
+        echo "#################"
+        echo "To try upload of channel.backup again:"
+        echo "MAINMENU > REPAIR > REPAIR-LND > RETRYSCB"
+        echo
+        echo "Press ENTER to continue for now ..."
+        rm /home/admin/channel.backup
+        read key
+      else
+        rm /home/admin/channel.backup
+        dialog --title " OK Static-Channel-Backup IMPORT " --msgbox "
+LND accepted the channel.backup file you uploaded. 
+It can now take up to an hour until you can see,
+if LND was able to recover funds from your channels.
+
+If you dont see any pending on-chain incoming funds
+within the next hour or you still missing funds, you
+can always retry the upload again under:
+MAINMENU > REPAIR > REPAIR-LND > RETRYSCB
+" 14 58
+      fi
+    fi
   fi
 
   #####################################
@@ -211,6 +270,9 @@ do
   # when setup is done & state is ready .. jump to main menu
   if [ "${setupPhase}" == "done" ] && [ "${state}" == "ready" ]; then
     # MAIN MENU
+    # remove higher scan rate on values
+    /home/admin/_cache.sh focus ln_default_locked -1
+    /home/admin/_cache.sh focus btc_default_synced -1
     echo "# 00mainMenu.sh"
     /home/admin/00mainMenu.sh
     # use the exit code from main menu as signal if menu loop should exited
@@ -228,7 +290,7 @@ do
     #echo "# DURING SETUP: Handle System State (${state})"
 
     # when no HDD on Vagrant - just print info & exit (admin info & exit)
-    if [ "${state}" == "noHDD" ] && [ ${vagrant} -gt 0 ]; then
+    if [ "${state}" == "noHDD" ] && [ ${system_vm_vagrant} != "0" ]; then
       echo "***********************************************************"
       echo "VAGRANT INFO"
       echo "***********************************************************"
@@ -320,7 +382,7 @@ if [ "${setupPhase}" == "done" ]; then
     echo "LND command line options: lncli -h"
   fi
   if [ "${lightning}" == "cl" ]; then
-    echo "C-Lightning command line options: lightning-cli help"
+    echo "Core Lightning command line options: lightning-cli help"
   fi
 else
   echo "Your setup is not finished."

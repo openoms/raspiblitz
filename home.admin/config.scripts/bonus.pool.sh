@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# !! NOTICE: Pool is now part of the 'bonus.lit.sh' bundle
+# NOTICE: Pool is now part of the 'bonus.lit.sh' bundle
 # this single install script will still be available for now
 # but main focus for the future development should be on LIT
 
@@ -14,13 +14,6 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "# this Pool instance is CLI only."
  echo "# for a GUI use 'bonus.lit.sh' instead"
  exit 1
-fi
-
-source /mnt/hdd/raspiblitz.conf
-
-# add default value to raspi config if needed
-if ! grep -Eq "^pool=" /mnt/hdd/raspiblitz.conf; then
-  echo "pool=off" >> /mnt/hdd/raspiblitz.conf
 fi
 
 # show info menu
@@ -39,7 +32,7 @@ sudo systemctl stop poold 2>/dev/null
 # switch on
 if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   echo "# installing pool"
-  
+
   echo "# remove LiT to avoid interference with accounts (data is preserved)"
   /home/admin/config.scripts/bonus.lit.sh off
 
@@ -48,7 +41,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
 
     # create dedicated user
     sudo adduser --disabled-password --gecos "" pool
-    
+
     echo "# persist settings in app-data"
     echo "# make sure the data directory exists"
     sudo mkdir -p /mnt/hdd/app-data/.pool
@@ -56,7 +49,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     sudo rm -rf /home/pool/.pool # not a symlink.. delete it silently
     sudo ln -s /mnt/hdd/app-data/.pool/ /home/pool/.pool
     sudo chown pool:pool -R /mnt/hdd/app-data/.pool
-    
+
     # set PATH for the user
     sudo bash -c "echo 'PATH=$PATH:/home/pool/go/bin/' >> /home/pool/.profile"
 
@@ -84,12 +77,12 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
       PGPcheck="03DB6322267C373B"
     fi
 
-    echo "Detect CPU architecture ..." 
+    echo "Detect CPU architecture ..."
     isARM=$(uname -m | grep -c 'arm')
     isAARCH64=$(uname -m | grep -c 'aarch64')
     isX86_64=$(uname -m | grep -c 'x86_64')
     if [ ${isARM} -eq 0 ] && [ ${isAARCH64} -eq 0 ] && [ ${isX86_64} -eq 0 ]; then
-      echo "!!! FAIL !!!"
+      echo "# FAIL #"
       echo "Can only build on ARM, aarch64, x86_64 or i386 not on:"
       uname -m
       exit 1
@@ -106,7 +99,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
       OSversion="arm64"
     elif [ ${isX86_64} -eq 1 ] ; then
       OSversion="amd64"
-    fi 
+    fi
     SHA256=$(grep -i "linux-$OSversion" manifest-${poolVersion}.txt | cut -d " " -f1)
 
     echo
@@ -124,31 +117,31 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     #wget --no-check-certificate ${PGPpkeys}
     binaryChecksum=$(sha256sum ${binaryName} | cut -d " " -f1)
     if [ "${binaryChecksum}" != "${SHA256}" ]; then
-      echo "!!! FAIL !!! Downloaded Pool BINARY not matching SHA256 checksum: ${SHA256}"
+      echo "# FAIL # Downloaded Pool BINARY not matching SHA256 checksum: ${SHA256}"
       exit 1
     fi
 
     echo "# check gpg finger print"
-    gpg --keyid-format LONG ./pgp_keys.asc
-    fingerprint=$(gpg --keyid-format LONG "./pgp_keys.asc" 2>/dev/null \
+    gpg --show-keys --keyid-format LONG ./pgp_keys.asc
+    fingerprint=$(gpg --show-keys --keyid-format LONG "./pgp_keys.asc" 2>/dev/null \
     | grep "${PGPcheck}" -c)
     if [ ${fingerprint} -lt 1 ]; then
       echo ""
-      echo "!!! BUILD WARNING --> Pool PGP author not as expected"
+      echo "# BUILD WARNING --> Pool PGP author not as expected"
       echo "Should contain PGP: ${PGPcheck}"
       echo "PRESS ENTER to TAKE THE RISK if you think all is OK"
       read key
     fi
     gpg --import ./pgp_keys.asc
     sleep 3
-    verifyResult=$(gpg --verify manifest-${poolVersion}.txt.sig manifest-${poolVersion}.txt 2>&1)
+    verifyResult=$(LANG=en_US.utf8; gpg --verify manifest-${poolVersion}.txt.sig manifest-${poolVersion}.txt 2>&1)
     goodSignature=$(echo ${verifyResult} | grep 'Good signature' -c)
     echo "goodSignature(${goodSignature})"
     correctKey=$(echo ${verifyResult} | tr -d " \t\n\r" | grep "${GPGcheck}" -c)
     echo "correctKey(${correctKey})"
     if [ ${correctKey} -lt 1 ] || [ ${goodSignature} -lt 1 ]; then
       echo ""
-      echo "!!! BUILD FAILED --> PGP verification failed / signature(${goodSignature}) verify(${correctKey})"
+      echo "# BUILD FAILED --> PGP verification failed / signature(${goodSignature}) verify(${correctKey})"
       exit 1
     fi
     ###########
@@ -163,16 +156,16 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     # get Go vars
     # source /etc/profile
     # cd /home/pool
-    # 
+    #
     # sudo -u pool git clone https://github.com/lightninglabs/pool.git || exit 1
     # cd /home/pool/pool
-    # # pin version 
+    # pin version
     # sudo -u pool git reset --hard $pinnedVersion
-    # # install to /home/pool/go/bin/
+    # install to /home/pool/go/bin/
     # sudo -u pool /usr/local/go/bin/go install ./... || exit 1
 
     # sync all macaroons and unix groups for access
-    /home/admin/config.scripts/lnd.credentials.sh sync
+    /home/admin/config.scripts/lnd.credentials.sh sync "${chain:-main}net"
     # macaroons will be checked after install
 
     # add user to group with admin access to lnd
@@ -197,7 +190,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
       proxy=""
     fi
 
-    # sudo nano /etc/systemd/system/poold.service 
+    # sudo nano /etc/systemd/system/poold.service
     echo "
 [Unit]
 Description=poold.service
@@ -224,11 +217,11 @@ WantedBy=multi-user.target
     sudo systemctl enable poold
     echo "# OK - the poold.service is now enabled"
 
-  else 
+  else
     echo "the poold.service already installed."
   fi
 
-  source /home/admin/raspiblitz.info
+  source <(/home/admin/_cache.sh get state)
   if [ "${state}" == "ready" ]; then
     echo "# OK - the poold.service is enabled, system is on ready so starting service"
     sudo systemctl start poold
@@ -236,13 +229,13 @@ WantedBy=multi-user.target
     echo "# OK - the poold.service is enabled, to start manually use: sudo systemctl start poold"
   fi
   # setting value in raspi blitz config
-  sudo sed -i "s/^pool=.*/pool=on/g" /mnt/hdd/raspiblitz.conf
-  
+  /home/admin/config.scripts/blitz.conf.sh set pool "on"
+
   isInstalled=$(sudo -u pool /usr/local/bin/poold  | grep -c pool)
   if [ ${isInstalled} -gt 0 ]; then
     echo "
 # Usage and examples: https://github.com/lightninglabs/pool
-# Use the command: 'sudo su - pool' 
+# Use the command: 'sudo su - pool'
 # in the terminal to switch to the dedicated user.
 # Type 'pool' again to see the options.
 "
@@ -250,7 +243,7 @@ WantedBy=multi-user.target
     echo "# Failed to install Lightning Pool "
     exit 1
   fi
-  
+
   exit 0
 fi
 
@@ -258,7 +251,7 @@ fi
 if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^pool=.*/pool=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set pool "off"
 
   isInstalled=$(sudo ls /etc/systemd/system/poold.service 2>/dev/null | grep -c 'poold.service')
   if [ ${isInstalled} -eq 1 ]; then
@@ -272,14 +265,14 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
     # delete the binary
     sudo rm /usr/local/bin/poold
     echo "# OK, the Pool Service is removed."
-  else 
+  else
     echo "# Pool is not installed."
   fi
 
   exit 0
 fi
 
-# # update
+# update
 # if [ "$1" = "update" ]; then
 #   echo "# Updating Pool "
 #   cd /home/pool/pool
@@ -291,7 +284,7 @@ fi
 #   UPSTREAM=${1:-'@{u}'}
 #   LOCAL=$(git rev-parse @)
 #   REMOTE=$(git rev-parse "$UPSTREAM")
-#   
+#
 #   if [ $LOCAL = $REMOTE ]; then
 #     TAG=$(git tag | sort -V | tail -1)
 #     echo "# You are up-to-date on version" $TAG
@@ -313,7 +306,7 @@ fi
 #       exit 1
 #     fi
 #   fi
-# 
+#
 #   echo "# At the latest in https://github.com/lightninglabs/pool/releases/"
 #   echo ""
 #   echo "# Starting the poold.service ... *** "

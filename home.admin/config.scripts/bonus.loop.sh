@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# !! NOTICE: Faraday is now part of the 'bonus.lit.sh' bundle
+# NOTICE: Faraday is now part of the 'bonus.lit.sh' bundle
 # this single install script will still be available for now
 # but main focus for the future development should be on LIT
 
@@ -11,15 +11,8 @@ pinnedVersion="v0.15.0-beta"
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "config script to switch the Lightning Loop Service on,off or update"
  echo "bonus.loop.sh [on|off|menu|update]"
- echo "!! DEPRECATED use instead: bonus.lit.sh"
+ echo "# DEPRECATED use instead: bonus.lit.sh"
  exit 1
-fi
-
-source /mnt/hdd/raspiblitz.conf
-
-# add default value to raspi config if needed
-if ! grep -Eq "^loop=" /mnt/hdd/raspiblitz.conf; then
-  echo "loop=off" >> /mnt/hdd/raspiblitz.conf
 fi
 
 # show info menu
@@ -91,7 +84,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     sudo -u loop /usr/local/go/bin/go install ./... || exit 1
 
     # sync all macaroons and unix groups for access
-    /home/admin/config.scripts/lnd.credentials.sh sync
+    /home/admin/config.scripts/lnd.credentials.sh sync "${chain:-main}net"
     # macaroons will be checked after install
 
     # add user to group with admin access to lnd
@@ -152,7 +145,7 @@ WantedBy=multi-user.target
   sudo /home/admin/config.scripts/bonus.rtl.sh connect-services
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^loop=.*/loop=on/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set loop "on"
   
   isInstalled=$(sudo -u loop /home/loop/go/bin/loop | grep -c loop)
   if [ ${isInstalled} -gt 0 ] ; then
@@ -169,7 +162,7 @@ fi
 if [ "$1" = "0" ] || [ "$1" = "off" ]; then
 
   # setting value in raspi blitz config
-  sudo sed -i "s/^loop=.*/loop=off/g" /mnt/hdd/raspiblitz.conf
+  /home/admin/config.scripts/blitz.conf.sh set loop "off"
 
   isInstalled=$(sudo ls /etc/systemd/system/loopd.service 2>/dev/null | grep -c 'loopd.service')
   if [ ${isInstalled} -eq 1 ]; then

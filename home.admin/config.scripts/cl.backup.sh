@@ -13,10 +13,99 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "---------------------------------------------------"
  echo "SEED WORDS"
  echo "---------------------------------------------------"
- echo "cl.backup.sh seed-export-gui [lndseeddata]"
+ echo "cl.backup.sh seed-export-gui [clseeddata]"
  echo "cl.backup.sh seed-import-gui [resultfile]"
+ echo "---------------------------------------------------"
+ echo "RECOVERY"
+ echo "---------------------------------------------------"
+ echo "cl.backup.sh [mainnet|signet|testnet] recoverymode [on|off|status] <-rescanbockheight|rescandepth>"
  echo
  exit 1
+fi
+
+# 1st PARAMETER [mainnet|signet|testnet]
+if [ "$1" == "mainnet" ] || [ "$1" == "testnet" ] || [ "$1" == "signet" ]; then
+
+  # prepare all chain dependent variables
+  source <(/home/admin/config.scripts/network.aliases.sh getvars cl $1)
+  mode="$2"
+
+  ################################
+  # RECOVERY
+  ################################
+
+  # c-lightning is considered in "recoverymode" when it is scanning the chain
+  # and getinfo -H shows:  'warning_lightningd_sync=Still loading latest blocks from bitcoind.'
+  # and 'blockheight=lower-than-in-bitcoind'
+
+  if [ ${mode} = "recoverymode" ]; then
+
+    # check if started with sudo
+    if [ "$EUID" -ne 0 ]; then 
+      echo "error='run as root'"
+      exit 1
+    fi
+
+    # status
+    recoverymodeStatus=$(grep -c "^rescan=" < "${CLCONF}")
+    if [ "$3" == "status" ]; then
+      if [ ${recoverymodeStatus} -gt 0 ]; then
+        echo "recoverymode=1"
+      else
+        echo "recoverymode=0"
+      fi
+      exit 0
+    fi
+
+    # on
+    if [ "$3" == "on" ]; then
+      if [ ${recoverymodeStatus} -gt 0 ]; then
+        echo "# recoverymode already on"
+        exit 0
+      fi
+
+      # clean
+      sed -i 's/^rescan=.*//g' "${CLCONF}"
+      sed -i 's/^log-level=.*//g' "${CLCONF}"
+
+      # activate rescan in cl config
+      if [ $# -gt 3 ]; then
+        scanFrom="$4"
+      else
+        # scan from block 700000 by default
+        scanFrom="-700000"
+      fi
+      echo "# activating recovery mode ..."
+      echo "rescan=${scanFrom}" | tee -a  "${CLCONF}"
+      echo "# setting log-level=debug ..."
+      echo "log-level=debug" | tee -a  "${CLCONF}"
+      echo "# OK - restart/reboot needed for: ${netprefix}lightningd.service"
+      exit 0
+    fi
+
+    # off
+    if [ "$3" == "off" ]; then
+      if [ ${recoverymodeStatus} -eq 0 ]; then
+        echo "# recoverymode already off"
+        exit 0
+      fi
+
+      # remove --reset-wallet-transactions parameter in systemd service
+      echo "# deactivating recovery mode ..."
+      sed -i 's/^rescan=.*//g' "${CLCONF}"
+      sed -i 's/^log-level=.*//g' "${CLCONF}"
+      echo "# setting log-level=info (default) ..."
+      echo "log-level=info" | tee -a  "${CLCONF}"
+      echo "# OK - restart/reboot needed for: ${netprefix}lightningd.service"
+      exit 0
+    fi
+
+    # parameter fallback
+    echo "error='unknown parameter'"
+    exit 1
+
+  fi
+
 fi
 
 # 1st PARAMETER action
@@ -59,7 +148,7 @@ if [ ${mode} = "cl-export" ]; then
   sudo chown ${fileowner}:${fileowner} ${downloadPath}/cl-rescue.tar.gz 1>&2
 
   # delete old backups
-  rm ${downloadPath}/cl-rescue-*.tar.gz 2>/dev/null 1>/dev/null
+  # rm ${downloadPath}/cl-rescue-*.tar.gz 2>/dev/null 1>/dev/null
 
   # name with md5 checksum
   md5checksum=$(md5sum ${downloadPath}/cl-rescue.tar.gz | head -n1 | cut -d " " -f1)
@@ -94,15 +183,15 @@ if [ ${mode} = "cl-export-gui" ]; then
   # offer SCP for download
   clear
   echo
-  echo "****************************"
-  echo "* DOWNLOAD THE RESCUE FILE *"
-  echo "****************************"
+  echo "*******************************************"
+  echo "* DOWNLOAD THE CORE LIGHTNING RESCUE FILE *"
+  echo "*******************************************"
   echo 
   echo "ON YOUR MAC & LINUX LAPTOP - RUN IN NEW TERMINAL:"
   echo "scp '${fileowner}@${localip}:${filename}' ./"
   echo "ON WINDOWS USE:"
   echo "scp ${fileowner}@${localip}:${filename} ."
-  echo ""
+  echo
   echo "Use password A to authenticate file transfer."
   echo "Check for correct file size after transfer: ${size} byte"
   echo
@@ -164,7 +253,7 @@ if [ ${mode} = "cl-import-gui" ]; then
   # get by second parameter if this call if happening during setup or production
   scenario=$2
   if [ "${scenario}" != "setup" ] && [ "${scenario}" != "production" ]; then
-    echo "error='mising parameter'"
+    echo "error='missing parameter'"
     exit 1
   fi
 
@@ -191,19 +280,19 @@ if [ ${mode} = "cl-import-gui" ]; then
   while [ "${filename}" == "" ]
     do
       clear 
-      echo "**************************"
-      echo "* UPLOAD THE RESCUE FILE *"
-      echo "**************************"
+      echo "*****************************************"
+      echo "* UPLOAD THE CORE LIGHTNING RESCUE FILE *"
+      echo "*****************************************"
       echo "If you have a cl-rescue backup file on your laptop you can now"
-      echo "upload it and restore your latest C-Lightning state."
+      echo "upload it and restore your latest Core Lightning state."
       echo
-      echo "CAUTION: Dont restore outdated states - risk of loosing funds!"
+      echo "CAUTION: Don't restore outdated states - risk of loosing funds!"
       echo
       echo "To make upload open a new terminal on your laptop,"
       echo "change into the directory where your cl-rescue file is and"
       echo "COPY, PASTE AND EXECUTE THE FOLLOWING COMMAND:"
       echo "scp -r ./cl-rescue-*.tar.gz ${defaultUploadUser}@${localip}:${defaultUploadPath}/"
-      echo ""
+      echo
       echo "Use ${passwordInfo} to authenticate file transfer."
       echo "PRESS ENTER when upload is done"
       read key
@@ -215,24 +304,24 @@ if [ ${mode} = "cl-import-gui" ]; then
         echo "PRESS ENTER to continue."
         read key
       elif [ "${error}" == "not-found" ]; then
-        echo "!! WARNING !!"
+        echo "# WARNING #"
         echo "There was no upload found in ${defaultUploadPath}"
         echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
         read keyRetry
       elif [ "${error}" == "multiple" ]; then
-        echo "!! WARNING !!"
+        echo "# WARNING #"
         echo "There are multiple cl-rescue files in directory ${defaultUploadPath}"
         echo "Make sure you upload only one tar.gz-file and start again."
         echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
         read keyRetry
       elif [ "${error}" == "invalid" ]; then
-        echo "!! WARNING !!"
+        echo "# WARNING #"
         echo "The file uploaded is not a valid (complete upload failed or not correct file)."
         echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
         read keyRetry
       else
         # create no result file and exit
-        echo "!! WARNING !! Unknown State (report to devs)"
+        echo "# WARNING # Unknown State (report to devs)"
         exit 1
       fi
 
@@ -244,7 +333,7 @@ if [ ${mode} = "cl-import-gui" ]; then
 
   done
 
-  # in setup scenario the final import is happening during provison
+  # in setup scenario the final import is happening during provision
   if [ "${scenario}" == "setup" ]; then
     # just add clrescue filename to give file
     echo "# result in: ${RESULTFILE} (remember to make clean delete once processed)"
@@ -252,18 +341,18 @@ if [ ${mode} = "cl-import-gui" ]; then
     exit 0
   fi
 
-  # in production now start restoring LND data based on file
+  # in production now start restoring CL data based on file
   source /mnt/hdd/raspiblitz.conf
   
   # ask security question before deleting old wallet
-  echo "WARNING: This will delete/overwrite the C-Lightning state/funds of this RaspiBlitz."
+  echo "WARNING: This will delete/overwrite the Core Lightning state/funds of this RaspiBlitz."
   echo
   echo "Write the word 'override' and press ENTER to CONTINUE:"
   read securityInput
   if [ "${securityInput}" != "override" ] && [ "${securityInput}" != "'override'" ]; then
-      echo
-      echo "CANCELED import of uploaded rescue file"
-      exit 1
+    echo
+    echo "CANCELED import of uploaded rescue file"
+    exit 1
   fi
   echo
 
@@ -288,13 +377,11 @@ if [ ${mode} = "cl-import-gui" ]; then
   if [ "$(grep -c "hsm_secret is not encrypted" < "$output")" -gt 0 ];then
     echo "# The hsm_secret is not encrypted"
     echo "# Record in raspiblitz.conf"
-    sudo sed -i \
-    "s/^${netprefix}clEncryptedHSM=.*/${netprefix}clEncryptedHSM=off/g" \
-    /mnt/hdd/raspiblitz.conf
+    /home/admin/config.scripts/blitz.conf.sh set ${netprefix}clEncryptedHSM "off"
   else
     cat $output
     echo "# Starting cl.hsmtool.sh unlock"
-    /home/admin/config.scripts/cl.hsmtool.sh unlock # there are mutiple wallets possible, need to check for non-default ones too
+    /home/admin/config.scripts/cl.hsmtool.sh unlock $CHAIN
   fi
 
   # set the lightningd service file on each active network
@@ -330,7 +417,7 @@ if [ ${mode} = "seed-export-gui" ]; then
   # use text snippet for testing:
   # 
 
-  # 2nd PARAMETER: lnd seed data
+  # 2nd PARAMETER: cl seed data
   seedwords6x4=$2
   if [ "${seedwords6x4}" == "" ]; then
     echo "error='missing parameter'"
@@ -340,13 +427,13 @@ if [ ${mode} = "seed-export-gui" ]; then
   ack=0
   while [ ${ack} -eq 0 ]
   do
-    whiptail --title "IMPORTANT SEED WORDS - PLEASE WRITE DOWN" --msgbox "Created a new C-lightning wallet. Store these numbered 24 words in a safe location:\n\n${seedwords6x4}" 13 76
+    whiptail --title "IMPORTANT SEED WORDS - PLEASE WRITE DOWN" --msgbox "Created a new Core Lightning wallet. Store these numbered 24 words in a safe location:\n\n${seedwords6x4}" 13 76
     whiptail --title "Please Confirm" --yes-button "Show Again" --no-button "CONTINUE" --yesno "  Are you sure that you wrote down the word list?" 8 55
     if [ $? -eq 1 ]; then
       ack=1
     fi
   done
-
+  exit 0
 fi
 
 # Results will be stored on memory cache:
@@ -379,7 +466,7 @@ if [ ${mode} = "seed-import-gui" ]; then
       sudo chown admin:admin /var/cache/raspiblitz/.seed.tmp
 
       # dialog to enter
-      dialog --backtitle "RaspiBlitz - C-lightning Recover" --inputbox "Please enter/paste the SEED WORD LIST:\n(just the words, seperated by spaces, in correct order as numbered)" 9 78 2>/var/cache/raspiblitz/.seed.tmp
+      dialog --backtitle "RaspiBlitz - Recover from Core Lightning seed" --inputbox "Please enter/paste the SEED WORD LIST:\n(just the words, seperated by spaces, in correct order as numbered)" 9 78 2>/var/cache/raspiblitz/.seed.tmp
       wordstring=$(cat /var/cache/raspiblitz/.seed.tmp | sed 's/[^a-zA-Z0-9 ]//g')
       sudo shred -u /var/cache/raspiblitz/.seed.tmp 2>/dev/null
       echo "processing ..."
@@ -418,8 +505,8 @@ Please check your list and try again.
 Best is to write words in external editor 
 and then copy and paste them into dialog.
 
-The Word list should look like this:
-wordone wordtweo wordthree ...
+The word list should look like this:
+wordone wordtwo wordthree ...
 
 " 16 52
 

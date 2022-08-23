@@ -2,15 +2,9 @@
 
 echo "Starting the main menu ..."
 
-# CONFIGFILE - configuration of RaspiBlitz
-configFile="/mnt/hdd/raspiblitz.conf"
-
-# INFOFILE - state data from bootstrap
-infoFile="/home/admin/raspiblitz.info"
-
 # MAIN MENU AFTER SETUP
-source ${infoFile}
-source ${configFile}
+source /home/admin/raspiblitz.info
+source /mnt/hdd/raspiblitz.conf
 
 # FUNCTIONS
 
@@ -38,7 +32,7 @@ confirmation()
 }
 
 # get the local network IP to be displayed on the LCD
-source <(/home/admin/config.scripts/internet.sh status local)
+source <(/home/admin/_cache.sh get internet_localip)
 
 if [ ${chain} = test ];then
   netprefix="t"
@@ -64,7 +58,7 @@ fi
 if [ ${#lightning} -gt 0 ]; then
   plus="/ ${lightning} ${plus}"
 fi
-BACKTITLE="${localip} / ${hostname} / ${network} ${plus}"
+BACKTITLE="${internet_localip} / ${hostname} / ${network} ${plus}"
 
 # Basic Options
 OPTIONS+=(INFO "RaspiBlitz Status Screen")
@@ -74,9 +68,9 @@ if [ "${lightning}" == "lnd" ] || [ "${lnd}" == "on" ]; then
   OPTIONS+=(LND "LND Wallet Options")
 fi
 
-# if C-Lightning is active
+# if Core Lightning is active
 if [ "${lightning}" == "cl" ] || [ "${cl}" == "on" ]; then
-  OPTIONS+=(CL "C-lightning Wallet Options")
+  OPTIONS+=(CLN "Core Lightning Wallet Options")
 fi
 
 # Activated Apps/Services
@@ -84,7 +78,7 @@ if [ "${rtlWebinterface}" == "on" ]; then
   OPTIONS+=(LRTL "LND RTL Webinterface")
 fi
 if [ "${crtlWebinterface}" == "on" ]; then
-  OPTIONS+=(CRTL "C-Lightning RTL Webinterface")
+  OPTIONS+=(CRTL "Core Lightning RTL Webinterface")
 fi
 if [ "${BTCPayServer}" == "on" ]; then
   OPTIONS+=(BTCPAY "BTCPay Server Info")
@@ -105,7 +99,11 @@ if [ "${BTCRPCexplorer}" == "on" ]; then
   OPTIONS+=(EXPLORE "BTC RPC Explorer")
 fi
 if [ "${LNBits}" == "on" ]; then
-  OPTIONS+=(LNBITS "LNbits Server")
+  if [ "${LNBitsFunding}" == "lnd" ] || [ "${LNBitsFunding}" == "tlnd" ] || [ "${LNBitsFunding}" == "slnd" ] || [ "${LNBitsFunding}" == "" ]; then
+    OPTIONS+=(LNBITS "LNbits on LND")
+  elif [ "${LNBitsFunding}" == "cl" ] || [ "${LNBitsFunding}" == "tcl" ] || [ "${LNBitsFunding}" == "scl" ]; then
+    OPTIONS+=(LNBITS "LNbits on Core Lightning")
+  fi
 fi
 if [ "${lndmanage}" == "on" ]; then
   OPTIONS+=(LNDMANAGE "LND Manage Script")
@@ -143,11 +141,27 @@ fi
 if [ "${sphinxrelay}" == "on" ]; then
   OPTIONS+=(SPHINX "Sphinx Chat Relay")
 fi
+if [ "${helipad}" == "on" ]; then
+  OPTIONS+=(HELIPAD "Helipad Boostagram reader")
+fi
 if [ "${chantools}" == "on" ]; then
   OPTIONS+=(CHANTOOLS "ChannelTools (Fund Rescue)")
 fi
+if [ "${homer}" == "on" ]; then
+  OPTIONS+=(HOMER "Homer Dashboard")
+  CHOICE_HEIGHT=$((CHOICE_HEIGHT+1))
+fi
 if [ "${circuitbreaker}" == "on" ]; then
   OPTIONS+=(CIRCUIT "Circuitbreaker (LND firewall)")
+fi
+if [ "${tallycoinConnect}" == "on" ]; then
+  OPTIONS+=(TALLY "Tallycoin Connect")
+fi
+if [ "${squeaknode}" == "on" ]; then
+  OPTIONS+=(SQUEAKNODE "Squeaknode")
+fi
+if [ "${itchysats}" == "on" ]; then
+  OPTIONS+=(ITCHYSATS "Show ItchySats details")
 fi
 
 # dont offer to switch to "testnet view for now" - so no wswitch back to mainnet needed
@@ -197,7 +211,7 @@ case $CHOICE in
               do
 
               # show the same info as on LCD screen
-              /home/admin/00infoBlitz.sh ${lightning} ${chain}net
+              /home/admin/00infoBlitz.sh ${chain}net ${lightning}
 
               # wait 6 seconds for user exiting loop
               echo ""
@@ -217,7 +231,7 @@ case $CHOICE in
         LND)
             /home/admin/99lndMenu.sh
             ;;
-        CL)
+        CLN)
             /home/admin/99clMenu.sh ${chain}net
             ;;
         CONNECT)
@@ -270,7 +284,7 @@ case $CHOICE in
             /home/admin/config.scripts/bonus.specter.sh menu
             ;;
         JM)
-            sudo /home/admin/config.scripts/bonus.joinmarket.sh menu
+            /home/admin/config.scripts/bonus.joinmarket.sh menu
             ;;
         FARADAY)
             sudo /home/admin/config.scripts/bonus.faraday.sh menu
@@ -284,6 +298,9 @@ case $CHOICE in
         THUB)
             sudo /home/admin/config.scripts/bonus.thunderhub.sh menu
             ;;
+        TALLY)
+            sudo /home/admin/config.scripts/bonus.tallycoin-connect.sh menu
+            ;;
         ZEROTIER)
             sudo /home/admin/config.scripts/bonus.zerotier.sh menu
             ;;
@@ -292,6 +309,16 @@ case $CHOICE in
             ;;
         SPHINX)
             sudo /home/admin/config.scripts/bonus.sphinxrelay.sh menu
+            ;;
+        HELIPAD)
+            sudo /home/admin/config.scripts/bonus.helipad.sh menu
+            ;;
+
+        SQUEAKNODE)
+            /home/admin/config.scripts/bonus.squeaknode.sh menu
+            ;;
+        ITCHYSATS)
+            sudo /home/admin/config.scripts/bonus.itchysats.sh menu
             ;;
         CHANTOOLS)
             sudo /home/admin/config.scripts/bonus.chantools.sh menu
@@ -305,6 +332,9 @@ case $CHOICE in
         SUBSCRIBE)
             /home/admin/config.scripts/blitz.subscriptions.py
             ;;
+        HOMER)
+            sudo /home/admin/config.scripts/bonus.homer.sh menu
+            ;;
         SERVICES)
             /home/admin/00settingsMenuServices.sh
             ;;
@@ -315,7 +345,7 @@ case $CHOICE in
             /home/admin/98repairMenu.sh
             ;;
         PASSWORD)
-            sudo /home/admin/config.scripts/blitz.setpassword.sh
+            sudo /home/admin/config.scripts/blitz.passwords.sh set
             ;;
         UPDATE)
             /home/admin/99updateMenu.sh

@@ -2,7 +2,7 @@
 
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "# managing the RaspiBlitz data - import, export, backup."
- echo "# blitz.migration.sh [export|import|export-gui|migration-umbrel|migration-mynode]"
+ echo "# blitz.migration.sh [export|import|export-gui|migration-umbrel|migration-mynode|migration-citadel]"
  echo "error='missing parameters'"
  exit 1
 fi
@@ -63,7 +63,7 @@ migrate_lnd_conf () {
     nodename="raspiblitz"
   fi
 
-  # keep old conf als backup
+  # keep old conf as backup
   sudo mv /mnt/hdd/lnd/lnd.conf /mnt/hdd/lnd/lnd.conf.migration
   # start from fresh configuration template (user will set password B on recovery)
   sudo cp /home/admin/assets/lnd.bitcoin.conf /mnt/hdd/lnd/lnd.conf
@@ -86,16 +86,17 @@ migrate_raspiblitz_conf () {
   # write default raspiblitz config
   source /home/admin/_version.info
   echo "# RASPIBLITZ CONFIG FILE" > /home/admin/raspiblitz.conf
-  echo "raspiBlitzVersion='${codeVersion}'" >> /home/admin/raspiblitz.conf
-  echo "network=bitcoin" >> /home/admin/raspiblitz.conf
-  echo "chain=main" >> /home/admin/raspiblitz.conf
-  echo "hostname=${nodename}" >> /home/admin/raspiblitz.conf
-  echo "displayClass=lcd" >> /home/admin/raspiblitz.conf
-  echo "lcdrotate=1" >> /home/admin/raspiblitz.conf
-  echo "runBehindTor=on" >> /home/admin/raspiblitz.conf
   sudo mv /home/admin/raspiblitz.conf /mnt/hdd/raspiblitz.conf
   sudo chown root:sudo /mnt/hdd/raspiblitz.conf
   sudo chmod 664 /mnt/hdd/raspiblitz.conf
+
+  /home/admin/config.scripts/blitz.conf.sh set raspiBlitzVersion "${codeVersion}"
+  /home/admin/config.scripts/blitz.conf.sh set network "bitcoin"
+  /home/admin/config.scripts/blitz.conf.sh set chain "main"
+  /home/admin/config.scripts/blitz.conf.sh set hostname "${nodename}"
+  /home/admin/config.scripts/blitz.conf.sh set displayClass "lcd"
+  /home/admin/config.scripts/blitz.conf.sh set lcdrotate "1"
+  /home/admin/config.scripts/blitz.conf.sh set runBehindTor "on"
 
   # rename ext4 data drive
   sudo e2label /dev/sda1 BLOCKCHAIN
@@ -108,23 +109,28 @@ migrate_raspiblitz_conf () {
 if [ "$1" = "migration-umbrel" ]; then
 
   source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
-
+  if [ "${isMounted}" == "1" ]; then
+    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh unmount)
+  fi
   # make sure data drive is mounted
+  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
   if [ "${isMounted}" != "1" ]; then
-    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
+    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount)
   fi
   if [ "${isMounted}" == "1" ]; then
-    echo "# mounted ${hddPartitionCandidate} to /mnt/hdd"
+    echo "# mounted /mnt/hdd (hddFormat='${hddFormat}')"
   else
-    echo "err='failed temp mounting disk'"
+    echo "error'failed temp mounting disk'"
     exit 1
   fi
 
   # checking basic data disk layout
   if [ -f /mnt/hdd/umbrel/bitcoin/bitcoin.conf ] && [ -f /mnt/hdd/umbrel/lnd/lnd.conf ]; then
-    echo "# found bitcoin & lnd data"
+    echo "# found bitcoin & lnd data <0.5.0"
+  elif [ "${hddVersionBTC}" != "" ] || [ "${hddVersionLND}" != "" ] || [ "${hddVersionCLN}" != "" ]; then
+    echo "# found umbrel data >=0.5.0"
   else
-    echo "err='umbrel data layout changed'"
+    echo "error='umbrel data layout changed'"
     exit 1
   fi
 
@@ -133,14 +139,14 @@ if [ "$1" = "migration-umbrel" ]; then
   # determine version
   version=$(sudo cat /mnt/hdd/umbrel/info.json | jq -r '.version')
   if [ "${version}" == "" ]; then
-    echo "err='not able to get version'"
+    echo "error='not able to get version'"
     exit 1
   fi
   versionMajor=$(echo "${version}" | cut -d "." -f1)
   versionMiner=$(echo "${version}" | cut -d "." -f2)
   versionPatch=$(echo "${version}" | cut -d "." -f3)
   if [ "${versionMajor}" == "" ] || [ "${versionMiner}" == "" ] || [ "${versionPatch}" == "" ]; then
-    echo "err='not able processing version'"
+    echo "error='not able processing version'"
     exit 1
   fi
 
@@ -159,21 +165,146 @@ if [ "$1" = "migration-umbrel" ]; then
   # extract detailed data
   nameNode=$(sudo jq -r '.name' /mnt/hdd/umbrel/db/user.json)
 
+  # call function for final migration
+  migrate_raspiblitz_conf ${nameNode}
+
+  # move bitcoin/blockchain & call function to migrate config
+  echo "### BITCOIN ###"
+  if [ ${versionMajor} -eq 0 ] && [ ${versionMiner} -gt 4 ]; then
+    echo "# moving new bitcoin data >=0.5.0"
+    sudo rm -R /mnt/hdd/bitcoin 2>/dev/null
+    sudo mv /mnt/hdd/umbrel/app-data/bitcoin/data/bitcoin /mnt/hdd/
+    sudo rm /mnt/hdd/bitcoin/.walletlock 2>/dev/null
+    sudo chown bitcoin:bitcoin -R /mnt/hdd/bitcoin
+    migrate_btc_conf
+    /home/admin/config.scripts/blitz.conf.sh set lightning "none"
+  else
+    echo "# moving old bitcoin data <0.5.0"
+    sudo mv /mnt/hdd/bitcoin /mnt/hdd/backup_bitcoin 2>/dev/null
+    sudo mv /mnt/hdd/umbrel/bitcoin /mnt/hdd/
+    sudo rm /mnt/hdd/bitcoin/.walletlock 2>/dev/null
+    sudo chown bitcoin:bitcoin -R /mnt/hdd/bitcoin
+    migrate_btc_conf
+  fi
+
+  # CORE LIGHTNING since 0.5.0 umbrel has core lightning
+  echo "### CORE LIGHTNING ###"
+  if [ ${versionMajor} -eq 0 ] && [ ${versionMiner} -gt 4 ]; then
+    clnExists=$(sudo ls /mnt/hdd/umbrel/app-data/core-lightning/data/lightningd/bitcoin/hsm_secret | grep -c "hsm_secret")
+    if [ "${clnExists}" == "1" ]; then 
+      echo "# moving cln data >=0.5.0"
+      sudo mv /mnt/hdd/app-data/.lightning /mnt/hdd/app-data/backup_lightning 2>/dev/null
+      sudo mkdir /mnt/hdd/app-data/.lightning 2>/dev/null
+      sudo mv /mnt/hdd/umbrel/app-data/core-lightning/data/lightningd/bitcoin /mnt/hdd/app-data/.lightning/
+      sudo chown bitcoin:bitcoin -R /mnt/hdd/app-data/.lightning
+      /home/admin/config.scripts/blitz.conf.sh set cl on
+      /home/admin/config.scripts/blitz.conf.sh set lightning "cl"
+    else
+      echo "# no cln data found >=0.5.0"
+    fi
+  else
+    echo "# no core lightning <0.5.0"
+  fi
+
+  # LND since 0.5.0 umbrel uses a different data structure
+  echo "### LND ###"
+  if [ ${versionMajor} -eq 0 ] && [ ${versionMiner} -gt 4 ]; then
+    # new way - lnd might even not exist because its optional 
+    lndExists=$(sudo ls /mnt/hdd/umbrel/app-data/lightning/data/lnd/lnd.conf | grep -c "lnd.conf")
+    if [ "${lndExists}" == "1" ]; then
+      echo "# moving lnd data >=0.5.0"
+      sudo mv /mnt/hdd/lnd /mnt/hdd/backup_lnd 2>/dev/null
+      sudo mv /mnt/hdd/umbrel/app-data/lightning/data/lnd /mnt/hdd/
+      sudo chown bitcoin:bitcoin -R /mnt/hdd/lnd 
+      migrate_lnd_conf ${nameNode}
+      /home/admin/config.scripts/blitz.conf.sh set lnd on
+      /home/admin/config.scripts/blitz.conf.sh set lightning "lnd"
+    else
+      echo "# no lnd data found >=0.5.0"
+    fi
+  else
+    echo "# moving old lnd data <0.5.0"
+    sudo mv /mnt/hdd/lnd /mnt/hdd/backup_lnd 2>/dev/null
+    sudo mv /mnt/hdd/umbrel/lnd /mnt/hdd/
+    sudo chown bitcoin:bitcoin -R /mnt/hdd/lnd
+    migrate_lnd_conf ${nameNode}
+    /home/admin/config.scripts/blitz.conf.sh set lnd on
+    /home/admin/config.scripts/blitz.conf.sh set lightning "lnd"
+  fi
+
+  # backup & rename the rest of the data
+  sudo mv /mnt/hdd/umbrel /mnt/hdd/backup_migration
+
+  echo "# OK ... data disk converted to RaspiBlitz"
+  exit 0
+fi
+
+########################
+# MIGRATION from Citadel
+########################
+
+if [ "$1" = "migration-citadel" ]; then
+
+  # make sure data drive is mounted
+  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
+  if [ "${isMounted}" != "1" ]; then
+    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount)
+  fi
+  if [ "${isMounted}" == "1" ]; then
+    echo "# mounted /mnt/hdd (hddFormat='${hddFormat}')"
+  else
+    echo "error='failed temp mounting disk'"
+    exit 1
+  fi
+
+  # checking basic data disk layout
+  if [ -f /mnt/hdd/citadel/bitcoin/bitcoin.conf ] && [ -f /mnt/hdd/citadel/lnd/lnd.conf ]; then
+    echo "# found bitcoin & lnd data"
+  else
+    echo "error='citadel data layout changed'"
+    exit 1
+  fi
+
+  echo "# starting to rearrange the data drive for raspiblitz .."
+
+  # determine version
+  version=$(sudo cat /mnt/hdd/citadel/info.json | jq -r '.version')
+  if [ "${version}" == "" ]; then
+    echo "error='not able to get version'"
+    exit 1
+  fi
+  versionMajor=$(echo "${version}" | cut -d "." -f1)
+  versionMiner=$(echo "${version}" | cut -d "." -f2)
+  versionPatch=$(echo "${version}" | cut -d "." -f3)
+  if [ "${versionMajor}" == "" ] || [ "${versionMiner}" == "" ] || [ "${versionPatch}" == "" ]; then
+    echo "error='not able processing version'"
+    exit 1
+  fi
+
+  # set flag with standard password to be changed on final recovery setup
+  sudo touch /mnt/hdd/passwordc.flag
+  sudo chmod 777 /mnt/hdd/passwordc.flag
+  echo "moneyprintergobrrr" >> /mnt/hdd/passwordc.flag
+  sudo chown admin:admin /mnt/hdd/passwordc.flag
+
+  # extract detailed data
+  nameNode=$(sudo jq -r '.name' /mnt/hdd/citadel/db/user.json)
+
   # move bitcoin/blockchain & call function to migrate config
   sudo mv /mnt/hdd/bitcoin /mnt/hdd/backup_bitcoin 2>/dev/null
-  sudo mv /mnt/hdd/umbrel/bitcoin /mnt/hdd/
+  sudo mv /mnt/hdd/citadel/bitcoin /mnt/hdd/
   sudo rm /mnt/hdd/bitcoin/.walletlock 2>/dev/null
   sudo chown bitcoin:bitcoin -R /mnt/hdd/bitcoin
   migrate_btc_conf
 
   # move lnd & call function to migrate config
   sudo mv /mnt/hdd/lnd /mnt/hdd/backup_lnd 2>/dev/null
-  sudo mv /mnt/hdd/umbrel/lnd /mnt/hdd/
+  sudo mv /mnt/hdd/citadel/lnd /mnt/hdd/
   sudo chown bitcoin:bitcoin -R /mnt/hdd/lnd
   migrate_lnd_conf ${nameNode}
 
   # backup & rename the rest of the data
-  sudo mv /mnt/hdd/umbrel /mnt/hdd/backup_migration
+  sudo mv /mnt/hdd/citadel /mnt/hdd/backup_migration
 
   # call function for final migration
   migrate_raspiblitz_conf ${nameNode}
@@ -189,16 +320,15 @@ fi
 
 if [ "$1" = "migration-mynode" ]; then
 
-  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
-
   # make sure data drive is mounted
+  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh status)
   if [ "${isMounted}" != "1" ]; then
-    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
+    source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount)
   fi
   if [ "${isMounted}" == "1" ]; then
-    echo "# mounted ${hddPartitionCandidate} to /mnt/hdd"
+    echo "# mounted /mnt/hdd (hddFormat='${hddFormat}')"
   else
-    echo "err='failed temp mounting disk'"
+    echo "error='failed temp mounting disk'"
     exit 1
   fi
 
@@ -206,7 +336,7 @@ if [ "$1" = "migration-mynode" ]; then
   if [ -f /mnt/hdd/mynode/bitcoin/bitcoin.conf ] && [ -f /mnt/hdd/mynode/lnd/lnd.conf ]; then
     echo "# found bitcoin & lnd data"
   else
-    echo "err='mynode data layout changed'"
+    echo "error='mynode data layout changed'"
     exit 1
   fi
 
@@ -248,7 +378,7 @@ if [ "$1" = "export" ]; then
   # collect files to exclude in export in temp file
   echo "*.tar.gz" > ~/.exclude.temp
   echo "/mnt/hdd/bitcoin" >> ~/.exclude.temp 
-  echo "/mnt/hdd/litecoin" >> ~/.exclude.temp 
+  echo "/mnt/hdd/litecoin" >> ~/.exclude.temp # keep for legacy reasons
   echo "/mnt/hdd/swapfile" >> ~/.exclude.temp 
   echo "/mnt/hdd/temp" >> ~/.exclude.temp
   echo "/mnt/hdd/lost+found" >> ~/.exclude.temp 
@@ -261,13 +391,6 @@ if [ "$1" = "export" ]; then
     sudo mkdir -p /mnt/hdd/backup_bitcoin
     sudo cp /mnt/hdd/bitcoin/bitcoin.conf /mnt/hdd/backup_bitcoin/bitcoin.conf
     sudo cp /mnt/hdd/bitcoin/wallet.dat /mnt/hdd/backup_bitcoin/wallet.dat 2>/dev/null
-  fi
-
-  # copy litecoin data files to backup dir (if litecoin active)
-  if [ -f "/mnt/hdd/litecoin/litecoin.conf" ]; then
-    sudo mkdir -p /mnt/hdd/backup_litecoin
-    sudo cp /mnt/hdd/bitcoin/litecoin.conf /mnt/hdd/backup_litecoin/litecoin.conf
-    sudo cp /mnt/hdd/bitcoin/wallet.dat /mnt/hdd/backup_litecoin/wallet.dat 2>/dev/null
   fi
 
   # clean old backups from temp
@@ -291,7 +414,7 @@ if [ "$1" = "export" ]; then
   sudo tar -zcvf ${defaultUploadPath}/raspiblitz-export-temp.tar.gz -X ~/.exclude.temp /mnt/hdd 1>~/.include.temp 2>/dev/null
 
   # get md5 checksum
-  echo "# Building checksum (can take also a while) ..." 
+  echo "# Building checksum (can take a while) ..." 
   md5checksum=$(md5sum ${defaultUploadPath}/raspiblitz-export-temp.tar.gz | head -n1 | cut -d " " -f1)
   echo "md5checksum=${md5checksum}"
   
@@ -321,10 +444,36 @@ if [ "$1" = "export-gui" ]; then
   # cleaning old migration files from blitz
   sudo rm ${defaultUploadPath}/*.tar.gz 2>/dev/null
 
-  # stopping lnd / bitcoin
   echo "--> stopping services ..."
-  sudo systemctl stop lnd
+  source /mnt/hdd/raspiblitz.conf
+  # bitcoind
   sudo systemctl stop bitcoind
+  if [ "${testnet}" == "on" ] || [ "${cl}" == "1" ]; then
+    sudo systemctl stop tbitcoind
+  fi
+  if [ "${signet}" == "on" ] || [ "${tcl}" == "1" ]; then
+    sudo systemctl stop sbitcoind
+  fi
+  # lnd
+  if [ "${lnd}" == "on" ] || [ "${lnd}" == "1" ]; then
+    sudo systemctl stop lnd
+  fi
+  if [ "${tlnd}" == "on" ] || [ "${tlnd}" == "1" ]; then
+    sudo systemctl stop tlnd
+  fi
+  if [ "${slnd}" == "on" ] || [ "${slnd}" == "1" ]; then
+    sudo systemctl stop slnd
+  fi
+  # lightningd
+  if [ "${cl}" == "on" ] || [ "${cl}" == "1" ]; then
+    sudo systemctl stop lightningd
+  fi
+  if [ "${tcl}" == "on" ] || [ "${tcl}" == "1" ]; then
+    sudo systemctl stop tlightningd
+  fi
+  if [ "${scl}" == "on" ] || [ "${scl}" == "1" ]; then
+    sudo systemctl stop slightningd
+  fi
 
   # create new migration file
   clear
@@ -393,22 +542,14 @@ if [ "$1" = "import" ]; then
     exit 1
   fi
 
-  # copy bitcoin/litecoin data backups back to original places (if part of backup)
+  # copy bitcoin data backups back to original places (if part of backup)
   if [ -d "/mnt/hdd/backup_bitcoin" ]; then
     echo "# Copying back bitcoin backup data .."
-    sudo mkdir /mnt/hdd/bitcoin
+    sudo mkdir /mnt/hdd/bitcoin 2>/dev/null
     sudo cp /mnt/hdd/backup_bitcoin/bitcoin.conf /mnt/hdd/bitcoin/bitcoin.conf
     sudo cp /mnt/hdd/backup_bitcoin/wallet.dat /mnt/hdd/bitcoin/wallet.dat  2>/dev/null
     sudo chown bitcoin:bitcoin -R /mnt/hdd/bitcoin
     sudo chown bitcoin:bitcoin -R /mnt/storage/bitcoin 2>/dev/null
-  fi
-  if [ -d "/mnt/hdd/backup_litecoin" ]; then
-    echo "# Copying back litecoin backup data .."
-    sudo mkdir /mnt/hdd/litecoin
-    sudo cp /mnt/hdd/backup_litecoin/litecoin.conf /mnt/hdd/litecoin/litecoin.conf
-    sudo cp /mnt/hdd/backup_litecoin/wallet.dat /mnt/hdd/litecoin/wallet.dat  2>/dev/null
-    sudo chown bitcoin:bitcoin -R /mnt/hdd/litecoin
-    sudo chown bitcoin:bitcoin -R /mnt/storage/litecoin 2>/dev/null
   fi
 
   # check migration 

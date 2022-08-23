@@ -16,6 +16,9 @@ fi
 
 source <(/home/admin/config.scripts/network.aliases.sh getvars $1 $2)
 
+# raise high focus on lightning peers next 5min
+/home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_peers 0 300
+
 # let user enter a <pubkey>@host
 l1="Enter the node pubkey address with host information:"
 l2="example -----> 024ddf33[...]1f5f9f3@91.65.1.38:9735"
@@ -134,9 +137,9 @@ if [ ${win} -eq 1 ]; then
   echo
   echo "What's next? --> Open a channel with that node."
 else
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "FAIL"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "${info}"
 fi
 

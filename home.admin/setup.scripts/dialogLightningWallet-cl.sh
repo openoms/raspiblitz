@@ -14,7 +14,7 @@ enterSEED=0
 OPTIONS=()
 OPTIONS+=(NEW "Setup a brand new Lightning Node (DEFAULT)")
 OPTIONS+=(OLD "I had an old Node I want to recover/restore")
-CHOICE=$(dialog --backtitle "RaspiBlitz" --clear --title "C-Lightning Setup" --menu "C-Lightning Data & Wallet" 11 60 6 "${OPTIONS[@]}" 2>&1 >/dev/tty)
+CHOICE=$(dialog --backtitle "RaspiBlitz" --clear --title "Core Lightning Setup" --menu "Core Lightning Data & Wallet" 11 60 6 "${OPTIONS[@]}" 2>&1 >/dev/tty)
 
 if [ "${CHOICE}" == "NEW" ]; then
 
@@ -110,7 +110,7 @@ if [ ${uploadRESCUE} -eq 1 ]; then
     exit 3
   fi
 
-  # clear setup state from all fomer possible choices (previous loop)
+  # clear setup state from all former possible choices (previous loop)
   sudo sed -i '/^clrescue=/d' $SETUPFILE
 
   # store result in setup state

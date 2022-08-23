@@ -2,7 +2,7 @@
 
 function help(){
   echo
-  echo "Install the backup plugin for C-lightning"
+  echo "Install the backup plugin for Core Lightning"
   echo "Replicates the lightningd.sqlite3 database on the SDcard"
   echo
   echo "Usage:"
@@ -14,6 +14,10 @@ function help(){
   echo
   exit 1
 }
+
+# https://github.com/lightningd/plugins/commits/master/backup
+# use the version beore the migration to poetry
+pinnedVersion="3da5778dcf408ff075515b4956aef405aa18f81a"
 
 # command info
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ];then
@@ -30,6 +34,8 @@ function install() {
     cd /home/bitcoin/cl-plugins-available || exit 1
     sudo -u bitcoin git clone https://github.com/lightningd/plugins.git
   fi
+  cd ${plugindir} || exit 1
+  sudo -u bitcoin git reset --hard ${pinnedVersion}
   
   if [ $($lightningcli_alias plugin list 2>/dev/null | grep -c "${plugin}") -eq 0 ];then
     echo "# Checking dependencies"
@@ -49,7 +55,7 @@ function install() {
   fi
 }
 
-if [ $1 = on ];then
+if [ "$1" = on ];then
   
   install
 
@@ -74,14 +80,23 @@ if [ $1 = on ];then
    --lightning-dir /home/bitcoin/.lightning/${CLNETWORK} \
    file:///home/bitcoin/${netprefix}lightningd.sqlite3.backup
 
-  source /home/admin/raspiblitz.info
+  if [ $(crontab -u admin -l | grep -c "backup-compact $CHAIN") -eq 0 ]; then
+    echo "Add weekly backup-compact as a cronjob"
+    cronjob="@weekly /home/admin/config.scripts/cl-plugin.backup.sh backup-compact $CHAIN"
+    (crontab -u admin -l; echo "$cronjob" ) | crontab -u admin -
+  fi
+  echo "# The crontab for admin now is:"
+  crontab -u admin -l
+  echo
+
+  source <(/home/admin/_cache.sh get state)
   if [ "${state}" == "ready" ]; then
     sudo systemctl start ${netprefix}lightningd
     echo "# Started the ${netprefix}lightningd.service"
   fi
 
 
-elif [ $1 = off ];then
+elif [ "$1" = off ];then
   echo "# Removing the backup plugin"
   sudo rm -f /home/bitcoin/${netprefix}cl-plugins-enabled/backup.py
   echo "# Backup the existing old backup on the SDcard"
@@ -92,7 +107,7 @@ elif [ $1 = off ];then
   sudo rm -f  /home/bitcoin/.lightning/${CLNETWORK}/backup.lock
 
 
-elif [ $1 = restore ];then
+elif [ "$1" = restore ];then
 
   install
 
@@ -103,7 +118,7 @@ elif [ $1 = restore ];then
   
     # https://github.com/lightningd/plugins/tree/master/backup#restoring-a-backup
     # ./backup-cli restore file:///mnt/external/location ~/.lightning/bitcoin/lightningd.sqlite3
-    
+
     # make sure to not overwrite old database
     if sudo ls /home/bitcoin/.lightning/${CLNETWORK}/lightningd.sqlite3;then
       now=$(date +"%Y_%m_%d_%H%M%S")
@@ -120,7 +135,7 @@ elif [ $1 = restore ];then
       file:///home/bitcoin/${netprefix}lightningd.sqlite3.backup \
       /home/bitcoin/.lightning/${CLNETWORK}/lightningd.sqlite3
     
-    source /home/admin/raspiblitz.info
+    source <(/home/admin/_cache.sh get state)
     if [ "${state}" == "ready" ]; then
       sudo systemctl start ${netprefix}lightningd
       echo "# Started the ${netprefix}lightningd.service"
@@ -128,15 +143,24 @@ elif [ $1 = restore ];then
   fi
 
 
-elif [ $1 = backup-compact ];then
-  
-  if sudo ls /home/bitcoin/.lightning/${CLNETWORK}/lightningd.sqlite3;then
-    # https://github.com/lightningd/plugins/tree/master/backup#performing-backup-compaction
-    echo "#  Running $lightning-cli backup-compact ..."
-    $lightningcli_alias backup-compact
+elif [ "$1" = backup-compact ];then
+  # https://github.com/lightningd/plugins/tree/master/backup#performing-backup-compaction
+  dbPath="/home/bitcoin/.lightning/${CLNETWORK}/lightningd.sqlite3"
+  backupPath="/home/bitcoin/${netprefix}lightningd.sqlite3.backup"
 
+  if sudo ls "${dbPath}" >/dev/null; then
+    dbSize=$(sudo du -m "${dbPath}" | awk '{print $1}')
+    echo "$dbSize MB $dbPath"
+    backupSize=$(sudo du -m "${backupPath}" | awk '{print $1}')
+    echo "$backupSize MB $backupPath"
+    if [ "$backupSize" -gt $((dbSize+200)) ] ; then
+      echo "# The backup is 200MB+ larger than the db, running '${netprefix}lightning-cli backup-compact' ..."
+      $lightningcli_alias backup-compact
+    else
+      echo "The backup is not significantly larger than the db, there is no need to compact." 
+    fi
   else
-    echo "# No /home/bitcoin/.lightning/${CLNETWORK}/lightningd.sqlite3 is present"
+    echo "# No ${dbPath} is present"
     echo "# Run 'config.scripts/cl-plugin.backup.sh on ${CLNETWORK}' first"    
   fi
 

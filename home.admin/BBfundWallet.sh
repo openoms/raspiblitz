@@ -27,9 +27,9 @@ elif [ $LNTYPE = lnd ];then
 fi
 if [ ${chainOutSync} -eq 1 ]; then
   if [ $LNTYPE = cl ];then
-    echo "# FAIL PRECHECK - lncli getinfo shows 'synced_to_chain': false - wait until chain is sync "
+    echo "# FAIL PRECHECK - '$lightningcli_alias getinfo' blockheight is different from 'bitcoind getblockchaininfo' - wait until chain is sync "
   else
-    echo "# FAIL PRECHECK - 'lightning-cli getinfo' blockheight is different from 'bitcoind getblockchaininfo' - wait until chain is sync "
+    echo "# FAIL PRECHECK - '$lncli_alias getinfo' shows 'synced_to_chain': false - wait until chain is sync "
   fi
   echo 
   echo "# PRESS ENTER to return to menu"
@@ -69,9 +69,6 @@ fi
 
 # prepare coin info
 coininfo="Bitcoin"
-if [ "$network" = "litecoin" ]; then
-  coininfo="Litecoin"
-fi
 if [ "$chain" = "test" ]; then
   coininfo="TESTNET Bitcoin"
 fi
@@ -82,7 +79,11 @@ if [ "$chain" = "test" ]; then
 fi
 
 echo "generating QR code ... please wait"
-/home/admin/config.scripts/blitz.display.sh qr "$network:${address}"
+sudo /home/admin/config.scripts/blitz.display.sh qr "$network:${address}"
+
+# raise high focus on onchain wallet balance & pending for the next 15min
+/home/admin/_cache.sh focus ln_${LNTYPE}_${chain}net_wallet_onchain_pending 0 900
+/home/admin/_cache.sh focus ln_${LNTYPE}_${chain}net_wallet_onchain_balance 0 900
 
 # dialog with instructions while QR code is shown on LCD
 whiptail --backtitle "Fund your onchain wallet" \
@@ -97,7 +98,7 @@ if [ $? -eq 1 ]; then
 fi
 
 # clean up
-/home/admin/config.scripts/blitz.display.sh hide
+sudo /home/admin/config.scripts/blitz.display.sh hide
 
 # follow up info
 if [ $LNTYPE = cl ];then

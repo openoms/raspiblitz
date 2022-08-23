@@ -22,7 +22,7 @@ fi
 # PGPpubkeyLink="https://github.com/${PGPsigner}.gpg"
 # PGPpubkeyFingerprint="F579929B39B119CC7B0BB71FB326ACF51F317B69"
 
-# Run with the insatting user to clear permissions:
+# Run with the installing user to clear permissions:
 # sudo -u btcrpcexplorer /home/admin/config.scripts/blitz.git-verify.sh \
 #  "${PGPsigner}" "${PGPpubkeyLink}" "${PGPpubkeyFingerprint}" || exit 1
 
@@ -30,17 +30,19 @@ PGPsigner="$1"
 PGPpubkeyLink="$2"
 PGPpubkeyFingerprint="$3"
 
-wget -O pgp_keys.asc "${PGPpubkeyLink}"
-gpg --import --import-options show-only ./pgp_keys.asc
-fingerprint=$(gpg pgp_keys.asc 2>/dev/null | grep "${PGPpubkeyFingerprint}" -c)
+
+wget -O /var/cache/raspiblitz/pgp_keys_${PGPsigner}.asc "${PGPpubkeyLink}"
+gpg --import --import-options show-only /var/cache/raspiblitz/pgp_keys_${PGPsigner}.asc
+fingerprint=$(gpg --show-keys /var/cache/raspiblitz/pgp_keys_${PGPsigner}.asc 2>/dev/null | grep "${PGPpubkeyFingerprint}" -c)
 if [ "${fingerprint}" -lt 1 ]; then
   echo
-  echo "# !!! WARNING --> the PGP fingerprint is not as expected for ${PGPsigner}" >&2
+  echo "# WARNING --> the PGP fingerprint is not as expected for ${PGPsigner}" >&2
   echo "# Should contain PGP: ${PGPpubkeyFingerprint}" >&2
   echo "# Exiting" >&2
   exit 7
 fi
-gpg --import ./pgp_keys.asc
+gpg --import /var/cache/raspiblitz/pgp_keys_${PGPsigner}.asc
+rm /var/cache/raspiblitz/pgp_keys_${PGPsigner}.asc
 
 trap 'rm -f "$_temp"' EXIT
 _temp="$(mktemp -p /dev/shm/)"
@@ -48,16 +50,19 @@ _temp="$(mktemp -p /dev/shm/)"
 if [ $# -eq 3 ]; then
   commitHash="$(git log --oneline | head -1 | awk '{print $1}')"
   gitCommand="git verify-commit $commitHash"
+  commitOrTag="$commitHash commit"
 elif [ $# -eq 4 ]; then
   gitCommand="git verify-tag $4"
+  commitOrTag="$4 tag"
 fi
+echo "# running: ${gitCommand}"
 if ${gitCommand} 2>&1 >&"$_temp"; then
   goodSignature=1
 else
   goodSignature=0
 fi
 echo
-cat $_temp
+cat "$_temp"
 echo "# goodSignature(${goodSignature})"
 
 correctKey=$(tr -d " \t\n\r" < "$_temp" | grep "${PGPpubkeyFingerprint}" -c)
@@ -65,12 +70,12 @@ echo "# correctKey(${correctKey})"
 
 if [ "${correctKey}" -lt 1 ] || [ "${goodSignature}" -lt 1 ]; then
   echo
-  echo "# !!! BUILD FAILED --> PGP verification not OK / signature(${goodSignature}) verify(${correctKey})"
+  echo "# BUILD FAILED --> PGP verification not OK / signature(${goodSignature}) verify(${correctKey})"
   exit 1
 else
   echo
   echo "##########################################################################"
-  echo "# OK --> the PGP signature of the checked out $commitHash commit is correct"
+  echo "# OK --> the PGP signature of the checked out ${commitOrTag} is correct"
   echo "##########################################################################"
   echo
   exit 0

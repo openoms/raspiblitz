@@ -13,8 +13,6 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
   exit 1
 fi
 
-source /home/admin/raspiblitz.info
-
 # 1. parameter [info|tested|reckless]
 mode="$1"
 
@@ -170,7 +168,7 @@ if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" 
   if ! gpg --recv-key "$customKey"
   then
     echo
-    echo "!!! FAIL !!! Could not download the PGP pubkey"
+    echo "# FAIL # Could not download the PGP pubkey"
     echo
     echo "See the signers of this release:"
     echo
@@ -179,14 +177,14 @@ if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" 
     exit 1
   fi
   
-  verifyResult=$(gpg --verify SHA256SUMS.asc 2>&1)
+  verifyResult=$(LANG=en_US.utf8; gpg --verify SHA256SUMS.asc 2>&1)
   goodSignature=$(echo ${verifyResult} | grep 'Good signature' -c)
   echo "goodSignature(${goodSignature})"
   correctKey=$(echo ${verifyResult} | grep "${customKey}" -c)
   echo "correctKey(${correctKey})"
   if [ ${correctKey} -lt 1 ] || [ ${goodSignature} -lt 1 ]; then
     echo
-    echo "# !!! BUILD FAILED --> PGP Verify not OK / signature(${goodSignature}) verify(${correctKey})"
+    echo "# BUILD FAILED --> PGP Verify not OK / signature(${goodSignature}) verify(${correctKey})"
     exit 1
   else
     echo
@@ -199,7 +197,7 @@ if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" 
   wget https://bitcoincore.org/bin/bitcoin-core-${pathVersion}/${binaryName}
   if [ ! -f "./${binaryName}" ]
   then
-    echo "# !!! FAIL !!! Downloading BITCOIN BINARY did not succeed."
+    echo "# FAIL # Downloading BITCOIN BINARY did not succeed."
     exit 1
   fi
 
@@ -209,7 +207,7 @@ if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" 
   if [ "${checksumTest}" -eq 0 ]; then
     # get the sha256 value for the corresponding platform from signed hash sum file
     bitcoinSHA256=$(grep -i "${binaryName}}" SHA256SUMS | cut -d " " -f1)
-    echo "!!! FAIL !!! Downloaded BITCOIN BINARY CHECKSUM:"
+    echo "# FAIL # Downloaded BITCOIN BINARY CHECKSUM:"
     echo "$(sha256sum ${binaryName})"
     echo "NOT matching SHA256 checksum:"
     echo "${bitcoinSHA256}"
@@ -231,9 +229,10 @@ fi
 if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" ];then
 
   # install
-  echo "# Stopping bitcoind and lnd ..."
-  sudo systemctl stop lnd
-  sudo systemctl stop bitcoind
+  echo "# Stopping bitcoind ..."
+  sudo systemctl stop bitcoind 2>/dev/null
+  sudo systemctl stop tbitcoind 2>/dev/null
+  sudo systemctl stop sbitcoind 2>/dev/null
   echo
   echo "# Installing Bitcoin Core v${bitcoinVersion}"
   tar -xvf ${binaryName}
@@ -242,32 +241,14 @@ if [ "${mode}" = "tested" ]||[ "${mode}" = "reckless" ]||[ "${mode}" = "custom" 
   installed=$(bitcoind --version | grep "${bitcoinVersion}" -c)
   if [ ${installed} -lt 1 ]; then
     echo
-    echo "# !!! BUILD FAILED --> Was not able to install bitcoind version(${bitcoinVersion})"
+    echo "# BUILD FAILED --> Was not able to install bitcoind version(${bitcoinVersion})"
     exit 1
   fi
-  echo "# flag update in raspiblitz config"
-  source /mnt/hdd/raspiblitz.conf
-  if [ ${#bitcoinInterimsUpdate} -eq 0 ]; then
-    echo "bitcoinInterimsUpdate='${bitcoinInterimsUpdateNew}'" >> /mnt/hdd/raspiblitz.conf
-  else
-    sudo sed -i "s/^bitcoinInterimsUpdate=.*/bitcoinInterimsUpdate='${bitcoinInterimsUpdateNew}'/g" /mnt/hdd/raspiblitz.conf
-  fi
+
+  echo "# mark update in raspiblitz config"
+  /home/admin/config.scripts/blitz.conf.sh set bitcoinInterimsUpdate "${bitcoinInterimsUpdateNew}"
 
   echo "# OK Bitcoin Core ${bitcoinVersion} is installed"
-  if [ "${state}" == "ready" ]; then
-    echo
-    echo "# Starting ..."
-    sudo systemctl start bitcoind
-    sleep 10
-    echo
-    sudo systemctl start lnd
-    echo "# Starting LND ..."
-    sleep 10
-    echo
-    echo "# Press ENTER to proceed to unlock the LND wallet ..."
-    read key
-    sudo /home/admin/config.scripts/lnd.unlock.sh
-  fi
   exit 0
 
 else

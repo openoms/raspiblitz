@@ -18,8 +18,6 @@ fi
 
 source <(/home/admin/config.scripts/network.aliases.sh getvars $1 $2)
 
-source <(/home/admin/config.scripts/network.aliases.sh getvars $LNTYPE ${chain}net)
-
 # check if chain is in sync
 if [ $LNTYPE = cl ];then
   lncommand="${netprefix}lightning-cli"
@@ -56,34 +54,26 @@ elif [ $LNTYPE = lnd ];then
 fi
 if [ ${openChannels} -eq 0 ]; then
   echo 
-  echo "!!!!!!!!!!!!!!!!!!!"
+  echo "#########"
   echo "FAIL - You have NO ESTABLISHED CHANNELS .. open a channel first."
-  echo "!!!!!!!!!!!!!!!!!!!"
+  echo "#########"
   sleep 3
   echo 
   exit 0
 fi
 
 paymentRequestStart="???"
-if [ "${network}" = "bitcoin" ]; then
-  if [ "${chain}" = "main" ]; then
-    paymentRequestStart="lnbc"
-  else
-    paymentRequestStart="lntb"
-  fi
-elif [ "${network}" = "litecoin" ]; then
-    paymentRequestStart="lnltc"
+if [ "${chain}" = "main" ]; then
+  paymentRequestStart="lnbc"
+else
+  paymentRequestStart="lntb"
 fi
 
 testSite="???"
-if [ "${network}" = "bitcoin" ]; then
-  if [ "${chain}" = "main" ]; then
-    testSite="https://satoshis.place"
-  else
-    testSite="https://starblocks.acinq.co/"
-  fi
-elif [ "${network}" = "litecoin" ]; then
-    testSite="https://millionlitecoinhomepage.net"
+if [ "${chain}" = "main" ]; then
+  testSite="https://satoshis.place"
+else
+  testSite="https://starblocks.acinq.co/"
 fi
 
 # let user enter the invoice
@@ -111,6 +101,9 @@ if [ $LNTYPE = cl ];then
 elif [ $LNTYPE = lnd ];then
   command="$lncli_alias sendpayment --force --pay_req=${invoice}"
 fi
+
+# raise high focus on lightning channel balance next 5min
+/home/admin/_cache.sh focus ln_${LNTYPE}_${CHAIN}_channels_balance 0 300
 
 # info output
 clear
@@ -142,10 +135,10 @@ if [ ${resultIsError} -gt 0 ]; then
 fi
 
 if [ ${#error} -gt 0 ]; then
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "FAIL"
   echo "try with a wallet app or the RTL WebGUI (see services)"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "###############"
   echo "${error}"
 else
   echo "${result}"
