@@ -19,6 +19,13 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "-help" ]; then
  echo "RECOVERY"
  echo "---------------------------------------------------"
  echo "cl.backup.sh [mainnet|signet|testnet] recoverymode [on|off|status] <-rescanbockheight|rescandepth>"
+ echo "---------------------------------------------------"
+ echo "STATIC CHANNEL BACKUP"
+ echo "---------------------------------------------------"
+ echo "cl.backup.sh scb-export"
+ echo "cl.backup.sh scb-export-gui"
+ echo "cl.backup.sh scb-import [file]"
+ echo "cl.backup.sh scb-import-gui [setup|production] [?resultfile]"
  echo
  exit 1
 fi
@@ -41,7 +48,7 @@ if [ "$1" == "mainnet" ] || [ "$1" == "testnet" ] || [ "$1" == "signet" ]; then
   if [ ${mode} = "recoverymode" ]; then
 
     # check if started with sudo
-    if [ "$EUID" -ne 0 ]; then 
+    if [ "$EUID" -ne 0 ]; then
       echo "error='run as root'"
       exit 1
     fi
@@ -134,7 +141,7 @@ if [ ${mode} = "cl-export" ]; then
   fi
   sleep 5
   echo "# OK"
-  echo 
+  echo
 
   # add cl version info into lnd dir (to detect needed updates later)
   clVersion=$(sudo -u bitcoin lightning-cli --version | cut -d '-' -f1 | cut -d 'v' -f2)
@@ -186,7 +193,7 @@ if [ ${mode} = "cl-export-gui" ]; then
   echo "*******************************************"
   echo "* DOWNLOAD THE CORE LIGHTNING RESCUE FILE *"
   echo "*******************************************"
-  echo 
+  echo
   echo "ON YOUR MAC & LINUX LAPTOP - RUN IN NEW TERMINAL:"
   echo "sftp '${fileowner}@${localip}:${filename}' ./"
   echo "ON WINDOWS USE:"
@@ -262,7 +269,7 @@ if [ ${mode} = "cl-import-gui" ]; then
     RESULTFILE=$3
     if [ "${RESULTFILE}" == "" ]; then
       echo "error='missing parameter'"
-      exit 1 
+      exit 1
     fi
   fi
 
@@ -279,7 +286,7 @@ if [ ${mode} = "cl-import-gui" ]; then
   filename=""
   while [ "${filename}" == "" ]
     do
-      clear 
+      clear
       echo "*****************************************"
       echo "* UPLOAD THE CORE LIGHTNING RESCUE FILE *"
       echo "*****************************************"
@@ -343,7 +350,7 @@ if [ ${mode} = "cl-import-gui" ]; then
 
   # in production now start restoring CL data based on file
   source /mnt/hdd/raspiblitz.conf
-  
+
   # ask security question before deleting old wallet
   echo "WARNING: This will delete/overwrite the Core Lightning state/funds of this RaspiBlitz."
   echo
@@ -366,7 +373,7 @@ if [ ${mode} = "cl-import-gui" ]; then
   /home/admin/config.scripts/cl.hsmtool.sh autounlock-off
 
   # detect if the imported hsm_secret is encrypted
-  # use the variables for the default network 
+  # use the variables for the default network
   source <(/home/admin/config.scripts/network.aliases.sh getvars cl)
   hsmSecretPath="/home/bitcoin/.lightning/${CLNETWORK}/hsm_secret"
   # check if encrypted
@@ -398,7 +405,7 @@ if [ ${mode} = "cl-import-gui" ]; then
     /home/admin/config.scripts/cl.install-service.sh signet
     /home/admin/config.scripts/cl-plugin.backup.sh on signet
   fi
- 
+
   # give final info
   echo
   echo "# DONE - lightningd is now starting"
@@ -408,6 +415,171 @@ if [ ${mode} = "cl-import-gui" ]; then
   exit 0
 fi
 
+
+####################################
+# STATIC CHANNEL BACKUP FILE - EXPORT
+####################################
+
+if [ ${mode} = "scb-export" ]; then
+
+  # get file info
+  source /mnt/hdd/raspiblitz.conf
+  echo "filename='/mnt/hdd/lnd/data/chain/${network}/${chain}net/channel.backup'"
+  echo "fileuser='bitcoin'"
+
+  # localip
+  source <(/home/admin/config.scripts/internet.sh status local)
+  echo "localip='${localip}'"
+
+  exit 0
+fi
+
+if [ ${mode} = "scb-export-gui" ]; then
+
+  # get the scb info
+  source <(sudo /home/admin/config.scripts/lnd.backup.sh scb-export)
+
+  # show download info
+  clear
+  echo "**************************************"
+  echo "* DOWNLOAD STATIC CHANEL BACKUP FILE *"
+  echo "**************************************"
+  echo
+  echo "RUN THE FOLLOWING COMMAND ON YOUR LAPTOP IN NEW TERMINAL:"
+  echo "sftp -r ${fileuser}@${localip}:${filename} ./"
+  echo ""
+  echo "Use password A to authenticate file transfer."
+  echo
+  echo "NOTE: Use this file when setting up a fresh RaspiBlitz by choosing"
+  echo "option OLD WALLET and then SCB+SEED -> Seed & channel.backup file"
+  echo "Will just recover on-chain & channel-funds, but closing all channels"
+  exit 0
+fi
+
+####################################
+# STATIC CHANNEL BACKUP FILE - IMPORT
+####################################
+
+if [ ${mode} = "scb-import" ]; then
+
+  # 2nd PARAMETER: file to import (expect that the file was valid checked from calling script)
+  filename=$2
+  if [ "${filename}" == "" ]; then
+    echo "error='filename missing'"
+    exit 1
+  fi
+  fileExists=$(sudo ls ${filename} 2>/dev/null | grep -c "${filename}")
+  if [ "${fileExists}" != "1" ]; then
+    echo "error='filename not found'"
+    exit 1
+  fi
+
+  # place the the file at '/home/admin/channel.backup'
+  sudo mv ${filename} /home/admin/channel.backup
+  sudo chmod 777 /home/admin/channel.backup
+  sudo chown admin:admin /home/admin/channel.backup
+  echo "# OK - placed SCB file at /home/admin/channel.backup"
+
+fi
+
+if [ ${mode} = "scb-import-gui" ]; then
+
+  # get by second parameter if this call if happening during setup or production
+  scenario=$2
+  if [ "${scenario}" != "setup" ] && [ "${scenario}" != "production" ]; then
+    echo "error='missing parameter'"
+    exit 1
+  fi
+
+  # scenario setup needs a 3rd parameter - the RESULTFILE to store results in
+  if [ "${scenario}" == "setup" ]; then
+    RESULTFILE=$3
+    if [ "${RESULTFILE}" == "" ]; then
+      echo "error='missing parameter'"
+      exit 1
+    fi
+  fi
+
+  # determine password info based on scenario
+  if [ "${scenario}" == "setup" ]; then
+    passwordInfo="password 'raspiblitz'"
+  else
+    passwordInfo="your Password A"
+  fi
+
+  # get defaultUploadPath, localIP, etc
+  source <(sudo /home/admin/config.scripts/blitz.upload.sh prepare-upload)
+
+  filename=""
+  while [ "${filename}" == "" ]
+    do
+
+      clear
+      echo "**********************************"
+      echo "* UPLOAD THE channel.backup FILE *"
+      echo "**********************************"
+      echo
+      echo "If you have the channel.backup file on your laptop or on"
+      echo "another server you can now upload it to the RaspiBlitz."
+      echo
+      echo "To make upload open a new terminal and change,"
+      echo "into the directory where your lnd-rescue file is and"
+      echo "COPY, PASTE AND EXECUTE THE FOLLOWING COMMAND:"
+      echo "sftp ./channel.backup ${defaultUploadUser}@${localip}:${defaultUploadPath}/"
+      echo ""
+      echo "Use ${passwordInfo} to authenticate file transfer."
+      echo "PRESS ENTER when upload is done."
+      read key
+
+      # check upload (will return filename or error)
+      source <(sudo /home/admin/config.scripts/blitz.upload.sh check-upload scb)
+      if [ "${filename}" != "" ]; then
+        echo "OK - File found: ${filename}"
+        echo "PRESS ENTER to continue."
+        read key
+      elif [ "${error}" == "not-found" ]; then
+        echo "# WARNING #"
+        echo "There was no upload found in ${defaultUploadPath}"
+        echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
+        read keyRetry
+      elif [ "${error}" == "multiple" ]; then
+        echo "# WARNING #"
+        echo "There are multiple lnd-rescue files in directory ${defaultUploadPath}"
+        echo "Make sure you upload only one tar.gz-file and start again."
+        echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
+        read keyRetry
+      elif [ "${error}" == "invalid" ]; then
+        echo "# WARNING #"
+        echo "The file uploaded is not a valid (complete upload failed or not correct file)."
+        echo "PRESS ENTER to continue & retry ... or 'x'+ ENTER to cancel"
+        read keyRetry
+      else
+        echo "# WARNING # Unknown State (report to devs)"
+        exit 1
+      fi
+
+      if [ "${keyRetry}" == "x" ] || [ "${keyRetry}" == "X" ] || [ "${keyRetry}" == "'x'" ]; then
+        # create no result file and exit
+        echo "# USER CANCEL"
+        exit 1
+      fi
+
+  done
+
+  # in setup scenario the final import is happening during provison
+  if [ "${scenario}" == "setup" ]; then
+    echo "# result in: ${RESULTFILE} (remember to make clean delete once processed)"
+    echo "staticchannelbackup='${filename}'" >> $RESULTFILE
+  fi
+
+  # run import process
+  source <(sudo /home/admin/config.scripts/lnd.backup.sh scb-import "${filename}")
+  echo "# DONE - placed SCB file at /home/admin/channel.backup"
+  exit 0
+fi
+
+
+
 ####################################
 # SEED WORDS - GUI PARTS
 ####################################
@@ -415,13 +587,13 @@ fi
 if [ ${mode} = "seed-export-gui" ]; then
 
   # use text snippet for testing:
-  # 
+  #
 
   # 2nd PARAMETER: cl seed data
   seedwords6x4=$2
   if [ "${seedwords6x4}" == "" ]; then
     echo "error='missing parameter'"
-    exit 1 
+    exit 1
   fi
 
   ack=0
@@ -460,7 +632,7 @@ if [ ${mode} = "seed-import-gui" ]; then
   while [ ${wordsCorrect} -eq 0 ]
     do
 
-      # prepare temp file 
+      # prepare temp file
       sudo rm /var/cache/raspiblitz/.seed.tmp 2>/dev/null
       sudo touch /var/cache/raspiblitz/.seed.tmp
       sudo chown admin:admin /var/cache/raspiblitz/.seed.tmp
@@ -470,7 +642,7 @@ if [ ${mode} = "seed-import-gui" ]; then
       wordstring=$(cat /var/cache/raspiblitz/.seed.tmp | sed 's/[^a-zA-Z0-9 ]//g')
       sudo shred -u /var/cache/raspiblitz/.seed.tmp 2>/dev/null
       echo "processing ..."
-      
+
       # check correct number of words
       wordcount=$(echo "${wordstring}" | wc -w)
       if [ ${wordcount} -eq 24 ]; then
@@ -502,7 +674,7 @@ Please check for typos.
 The word list has ${wordcount} words. But it must be 24.
 Please check your list and try again.
 
-Best is to write words in external editor 
+Best is to write words in external editor
 and then copy and paste them into dialog.
 
 The word list should look like this:

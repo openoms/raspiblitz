@@ -43,7 +43,7 @@ do
   source ${infoFile} 2>/dev/null
   source ${configFile} 2>/dev/null
   source <(/home/admin/_cache.sh get state setupPhase)
-  
+
   ####################################################
   # SKIP BACKGROUND TASK LOOP ON CERTAIN SYSTEM STATES
   # https://github.com/rootzoll/raspiblitz/issues/160
@@ -262,7 +262,7 @@ do
       # first check if flags need to be reset (manually delete of blockchain)
       if [ "${flagBtcDone}" == "1" ] && [ "${flagBtcActive}" == "1" ]; then
         flagBtcDone=0
-        /home/admin/config.scripts/blitz.conf.sh set btc_${CHAIN}net_sync_initial_done ${flagBtcDone} /home/admin/raspiblitz.info      
+        /home/admin/config.scripts/blitz.conf.sh set btc_${CHAIN}net_sync_initial_done ${flagBtcDone} /home/admin/raspiblitz.info
         echo "EVENT --> btc_${CHAIN}net_sync_initial_done changed to ${flagBtcDone}"
       fi
 
@@ -276,7 +276,7 @@ do
       # when started done is set - but not not active anymore --> end of IDB event detected
       if [ "${flagBtcDone}" == "0" ] && [ "${flagBtcOnline}" == "1" ] && [ "${flagBtcSynced}" == "1" ]; then
         flagBtcDone=1
-        /home/admin/config.scripts/blitz.conf.sh set btc_${CHAIN}net_sync_initial_done ${flagBtcDone} /home/admin/raspiblitz.info      
+        /home/admin/config.scripts/blitz.conf.sh set btc_${CHAIN}net_sync_initial_done ${flagBtcDone} /home/admin/raspiblitz.info
         echo "EVENT --> btc_${CHAIN}net_sync_initial_done changed to ${flagBtcDone}"
       fi
 
@@ -343,7 +343,7 @@ do
     # this flag signals that an initial blockchain sync/chatchup was happening
     flagExists=$(ls /mnt/hdd/bitcoin/blocks/selfsync.flag 2>/dev/null | grep -c "selfsync.flag")
     if [ ${flagExists} -eq 1 ]; then
-    
+
       source <(/home/admin/_cache.sh get btc_default_sync_initialblockdownload)
       if [ "${btc_default_sync_initialblockdownload}" == "0" ]; then
 
@@ -383,7 +383,7 @@ do
   # check every 30sec
   recheckBlitzTUI=$(($counter % 30))
   if [ "${touchscreen}" == "1" ] && [ ${recheckBlitzTUI} -eq 1 ]; then
-    
+
     echo "BlitzTUI Monitoring Check"
     if [ -d "/var/cache/raspiblitz" ]; then
       latestHeartBeatLine=$(tail -n 300 /var/cache/raspiblitz/pi/blitz-tui.log | grep beat | tail -n 1)
@@ -509,8 +509,111 @@ do
     fi
   fi
 
+
+  # check every 1min (only when lnd active)
+  recheckSCB=0
+  if [ "${lightning}" == "lnd" ] || [ "${lnd}" == "on" ]; then
+    recheckSCB=$(($counter % 60))
+  fi
+  if [ ${recheckSCB} -eq 1 ]; then
+    #echo "SCB Monitoring ..."
+    source ${configFile}
+    # check if channel.backup exists
+    scbPath=/mnt/hdd/lnd/data/chain/${network}/${chain}net/channel.backup
+    scbExists=$(ls $scbPath 2>/dev/null | grep -c 'channel.backup')
+    if [ ${scbExists} -eq 1 ]; then
+
+      # timestamp backup filename
+      timestampedFileName=channel-$(date "+%Y%m%d-%H%M%S").backup
+      localBackupDir=/home/admin/backups/scb
+      localBackupPath=${localBackupDir}/channel.backup
+      localTimestampedPath=${localBackupDir}/${timestampedFileName}
+
+      #echo "Found Channel Backup File .. check if changed .."
+      md5checksumORG=$(md5sum $scbPath 2>/dev/null | head -n1 | cut -d " " -f1)
+      md5checksumCPY=$(md5sum $localBackupPath 2>/dev/null | head -n1 | cut -d " " -f1)
+      if [ "${md5checksumORG}" != "${md5checksumCPY}" ]; then
+        echo "--> Channel Backup File changed"
+
+        # make copy to sd card (as local basic backup)
+        mkdir -p /home/admin/backups/scb/ 2>/dev/null
+        cp $scbPath $localBackupPath
+        cp $scbPath $localTimestampedPath
+        cp $scbPath /boot/channel.backup
+        echo "OK channel.backup copied to '${localBackupPath}' and '${localTimestampedPath}' and '/boot/channel.backup'"
+
+        # check if a additional local backup target is set
+        # see ./config.scripts/blitz.backupdevice.sh
+        if [ "${localBackupDeviceUUID}" != "" ] && [ "${localBackupDeviceUUID}" != "off" ]; then
+
+          # check if device got mounted on "/mnt/backup" (gets mounted by _bootstrap.sh)
+          backupDeviceExists=$(df | grep -c "/mnt/backup")
+          if [ ${backupDeviceExists} -gt 0 ]; then
+
+            echo "--> Additional Local Backup Device"
+            cp ${localBackupPath} /mnt/backup/
+            cp ${localTimestampedPath} /mnt/backup/
+
+            # check results
+            result=$?
+            if [ ${result} -eq 0 ]; then
+              echo "OK - Successful Copy to additional Backup Device"
+            else
+              echo "FAIL - Copy to additional Backup Device exited with ${result}"
+            fi
+
+          else
+            echo "FAIL - BackupDrive mount - check if device is connected & UUID is correct" >> $logFile
+          fi
+        fi
+
+        # check if a SFTP backup target is set
+        # parameter in raspiblitz.conf:
+        # sftpBackupTarget='[USER]@[SERVER]:[DIRPATH-WITHOUT-ENDING-/]'
+        # optionally a custom option string for the sftp command can be set with
+        # sftpBackupOptions='[YOUR-CUSTOM-OPTIONS]'
+        # On target server add the public key of your RaspiBlitz to the authorized_keys for the user
+        # https://www.linode.com/docs/security/authentication/use-public-key-authentication-with-ssh/
+        if [ ${#sftpBackupTarget} -gt 0 ]; then
+          echo "--> Offsite-Backup SFTP Server"
+          if [ "${sftpBackupOptions}" == "" ]; then
+            sftpBackupOptions="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          fi
+          # its ok to ignore known host, because data is encrypted (worst case of MiM would be: no offsite channel backup)
+          # but its more likely that without ignoring known host, script might not run thru and that way: no offsite channel backup
+          sftp ${sftpBackupOptions} ${localBackupPath} ${sftpBackupTarget}/
+          sftp ${sftpBackupOptions} ${localTimestampedPath} ${sftpBackupTarget}/
+          result=$?
+          if [ ${result} -eq 0 ]; then
+            echo "OK - SFTP Backup exited with 0"
+          else
+            echo "FAIL - SFTP Backup exited with ${result}"
+          fi
+        fi
+
+        # check if Nextcloud backups are enabled
+        if [ $nextcloudBackupServer ] && [ $nextcloudBackupUser ] && [ $nextcloudBackupPassword ]; then
+          echo "--> Offsite-Backup Nextcloud"
+          source <(/home/admin/config.scripts/nextcloud.upload.sh upload ${localBackupPath})
+          source <(/home/admin/config.scripts/nextcloud.upload.sh upload ${localTimestampedPath})
+          if [ ${#err} -gt 0 ]; then
+            echo "FAIL -  ${err}"
+          else
+            echo "OK - ${upload}"
+          fi
+        fi
+
+      #else
+      #  echo "Channel Backup File not changed."
+      fi
+    #else
+    #  echo "No Channel Backup File .."
+    fi
+  fi
+
+
   ###############################
-  # SUBSCRIPTION RENWES
+  # SUBSCRIPTION RENEWS
   ###############################
 
   # check every 20min
