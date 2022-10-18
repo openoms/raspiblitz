@@ -6,40 +6,26 @@ LNDVERSION="v0.15.2-beta"
 # help
 if [ $# -eq 0 ]||[ "$1" = "-h" ]||[ "$1" = "--help" ];then
   echo
-  echo "script to install a LND"
-  echo "Do not connect more than 3 instances to a bitcoin node!"
+  echo "script to install an lnd signer"
   echo "the default version is: $LNDVERSION"
   echo "the nodenumber defaults to '1'"
   echo "Usage:"
-  echo "install.lnd.sh [on <nodenumber>|off <nodenumber> <purge>] <mainnet|testnet|signett>"
+  echo "install.lnd.sh [on |off <purge>]  <nodenumber> <mainnet|testnet|signet>"
   echo
-  echo "to add the node to BoS, ThunderHub, Sphinx or export macaroons & tls.cert:"
+  echo "to export macaroons & tls.cert:"
   echo "install.lnd.sh menu"
-  echo "install.lnd.sh [bos|sphinx|thunderhub|hexstring|scp|http|btcpay <nodenumber>]"
-  echo
-  echo "install.lnd.sh [selftest|torinstance]"
+  echo "install.lnd.sh [hexstring|scp|http|btcpay <nodenumber>]"
   echo
   exit 1
 fi
 
 # vars
-
 source <(/home/admin/_cache.sh get network)
 if [ "${network}" == "" ]; then
   network="bitcoin"
 fi
 
-
-if [ -f /home/joinmarket/joinin.conf ];then
-  source /home/joinmarket/joinin.conf
-  CHAIN=$network
-fi
-if [ -f /mnt/hdd/raspiblitz.conf ];then
-  source /mnt/hdd/raspiblitz.conf
-  runningEnv="raspiblitz"
-  CHAIN=${chain}net
-fi
-
+CHAIN=$3
 source <(/home/admin/config.scripts/network.aliases.sh getvars lnd $3)
 
 LNDUSER="bitcoin"
@@ -52,18 +38,11 @@ if [ ${#NODENUMBER} -eq 0 ]||[ ${NODENUMBER} = "" ];then
   echo "# Must use a node number"
   exit 1
 fi
-if [ $runningEnv = raspiblitz ];then
-  APPDATADIR="/mnt/hdd/app-data"
-elif [ $runningEnv = standalone ];then
-  addUserStore
-  APPDATADIR="/home/store/app-data"
-fi
+APPDATADIR="/mnt/hdd/app-data"
 if [ $runningEnv = standalone ];then
   BITCOINDIR="/home/${LNDUSER}/bitcoin"
-  BTCCONFPATH="/home/${LNDUSER}/.bitcoin/bitcoin.conf"
 elif [ $runningEnv = raspiblitz ];then
   BITCOINDIR="/usr/local/bin"
-  BTCCONFPATH="/home/bitcoin/.bitcoin/bitcoin.conf"
 fi
 
 echo
@@ -114,7 +93,7 @@ nobootstrap=true
 # reachable from the node "watch-only".
 rpclisten=1${rpcportmod}0${NODENUMBER}9
 
-restlisten=0.0.0.0:${portprefix}8808${NODENUMBER}
+restlisten=0.0.0.0:${portprefix}808${NODENUMBER}
 
 # The signer node will not look at the chain at all, it only needs to sign
 # things with the keys contained in its wallet. So we don't need to hook it up
@@ -148,7 +127,7 @@ Group=${LNDUSER}
 Type=simple
 ExecStart=/usr/local/bin/lnd \
   --lnddir=\"/home/${LNDUSER}/.lnd${NODENUMBER}/\" \
-  --bitcoin.$CHAIN
+  --configfile=/home/bitcoin/.lnd${NODENUMBER}/${netprefix}lnd.conf
 Restart=always
 TimeoutSec=120
 RestartSec=30
@@ -163,18 +142,8 @@ WantedBy=multi-user.target
   sudo systemctl start ${netprefix}lnd${NODENUMBER}
   echo "# OK - the ${netprefix}lnd${NODENUMBER}.service is now enabled and started"
   echo
-  echo "# Adding aliases for $runningEnv"
-  if [ $runningEnv = standalone ];then
-    if [ $(grep -c "sudo -u ${LNDUSER} $BITCOINDIR/bitcoin-cli" < /home/joinmarket/_aliases ) -eq 0 ];then
-        echo "
-alias bitcoin-cli=\"sudo -u ${LNDUSER} $BITCOINDIR/bitcoin-cli\"
-alias bcli=\"sudo -u ${LNDUSER} $BITCOINDIR/bitcoin-cli -network=$CHAIN\"\
-" | sudo tee -a /home/joinmarket/_aliases
-    fi
-    ALIASFILE="/home/joinmarket/_aliases"
-  elif [ $runningEnv = raspiblitz ];then
-    ALIASFILE="/home/admin/_aliases"
-  fi
+
+  ALIASFILE="/home/admin/_aliases"
   echo "
 alias ${netprefix}lncli${NODENUMBER}=\"sudo -u ${LNDUSER} /usr/local/bin/lncli\
  --lnddir=\"/home/${LNDUSER}/.lnd${NODENUMBER}/\"\
