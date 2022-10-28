@@ -510,37 +510,38 @@ do
   fi
 
 
-  # check every 1min (only when lnd active)
-  recheckSCB=0
-  if [ "${lightning}" == "lnd" ] || [ "${lnd}" == "on" ]; then
-    recheckSCB=$(($counter % 60))
+  # check every 1min for cln
+  recheckER=0
+  if [ "${lightning}" == "cl" ] || [ "${cl}" == "on" ]; then
+    recheckER=$(($counter % 60))
   fi
-  if [ ${recheckSCB} -eq 1 ]; then
-    #echo "SCB Monitoring ..."
+  if [ ${recheckER} -eq 1 ]; then
+    #echo "ER Monitoring ..."
     source ${configFile}
-    # check if channel.backup exists
-    scbPath=/mnt/hdd/lnd/data/chain/${network}/${chain}net/channel.backup
-    scbExists=$(ls $scbPath 2>/dev/null | grep -c 'channel.backup')
-    if [ ${scbExists} -eq 1 ]; then
+    source <(/home/admin/config.scripts/network.aliases.sh getvars cl ${chain}net)
+    # check if emergency.recover exists
+    erPath=/home/bitcoin/.lightning/${CLNETWORK}/emergency.recover
+    erExists=$(ls $erPath 2>/dev/null | grep -c 'emergency.recover')
+    if [ ${erExists} -eq 1 ]; then
 
       # timestamp backup filename
-      timestampedFileName=channel-$(date "+%Y%m%d-%H%M%S").backup
-      localBackupDir=/home/admin/backups/scb
-      localBackupPath=${localBackupDir}/channel.backup
+      timestampedFileName=${netprefix}emergency-$(date "+%Y%m%d-%H%M%S").recover
+      localBackupDir=/home/admin/backups/er
+      localBackupPath=${localBackupDir}/emergency.recover
       localTimestampedPath=${localBackupDir}/${timestampedFileName}
 
       #echo "Found Channel Backup File .. check if changed .."
-      md5checksumORG=$(md5sum $scbPath 2>/dev/null | head -n1 | cut -d " " -f1)
+      md5checksumORG=$(md5sum $erPath 2>/dev/null | head -n1 | cut -d " " -f1)
       md5checksumCPY=$(md5sum $localBackupPath 2>/dev/null | head -n1 | cut -d " " -f1)
       if [ "${md5checksumORG}" != "${md5checksumCPY}" ]; then
         echo "--> Channel Backup File changed"
 
         # make copy to sd card (as local basic backup)
-        mkdir -p /home/admin/backups/scb/ 2>/dev/null
-        cp $scbPath $localBackupPath
-        cp $scbPath $localTimestampedPath
-        cp $scbPath /boot/channel.backup
-        echo "OK channel.backup copied to '${localBackupPath}' and '${localTimestampedPath}' and '/boot/channel.backup'"
+        mkdir -p /home/admin/backups/er/ 2>/dev/null
+        cp $erPath $localBackupPath
+        cp $erPath $localTimestampedPath
+        cp $erPath /boot/${netprefix}emergency.recover
+        echo "OK emergency.recover copied to '${localBackupPath}' and '${localTimestampedPath}' and '/boot/${netprefix}emergency.recover'"
 
         # check if a additional local backup target is set
         # see ./config.scripts/blitz.backupdevice.sh
