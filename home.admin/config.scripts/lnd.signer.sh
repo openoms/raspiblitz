@@ -91,7 +91,7 @@ nobootstrap=true
 
 # Just an example, this is the port that needs to be opened in the firewall and
 # reachable from the node "watch-only".
-rpclisten=1${rpcportmod}0${NODENUMBER}9
+rpclisten=1${L2rpcportmod}0${NODENUMBER}9
 
 restlisten=0.0.0.0:${portprefix}808${NODENUMBER}
 
@@ -148,7 +148,7 @@ WantedBy=multi-user.target
 alias ${netprefix}lncli${NODENUMBER}=\"sudo -u ${LNDUSER} /usr/local/bin/lncli\
  --lnddir=\"/home/${LNDUSER}/.lnd${NODENUMBER}/\"\
  --network=$CHAIN\
- --rpcserver localhost:1${rpcportmod}0${NODENUMBER}9\"" | sudo tee -a $ALIASFILE
+ --rpcserver localhost:1${L2rpcportmod}0${NODENUMBER}9\"" | sudo tee -a $ALIASFILE
 
   echo "# To activate the aliases reopen the terminal or use 'source $ALIASFILE'"
   echo
