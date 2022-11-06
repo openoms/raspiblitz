@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # https://github.com/lightningnetwork/lnd/releases/
-LNDVERSION="v0.15.2-beta"
+LNDVERSION="v0.15.4-beta"
 
 # help
 if [ $# -eq 0 ]||[ "$1" = "-h" ]||[ "$1" = "--help" ];then
