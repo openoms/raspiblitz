@@ -60,7 +60,7 @@ if [ "$1" = on ]||[ "$1" = update ]||[ "$1" = commit ]||[ "$1" = testPR ];then
   if [ ! -f /usr/local/bin/lnd ]||[ "$1" = update ]||[ "$1" = commit ]||[ "$1" = testPR ];then
     rm -rf lnd.update.${LNDVERSION}.sh
     # download
-    wget https://raw.githubusercontent.com/openoms/lightning-node-management/master/lnd.updates/lnd.update.${LNDVERSION}.sh
+    wget https://raw.githubusercontent.com/openoms/lightning-node-management/en/lnd.updates/lnd.update.${LNDVERSION}.sh
     # look through the script
     cat lnd.update.${LNDVERSION}.sh || exit 1
     # run
@@ -91,9 +91,10 @@ nobootstrap=true
 
 # Just an example, this is the port that needs to be opened in the firewall and
 # reachable from the node "watch-only".
-rpclisten=1${L2rpcportmod}0${NODENUMBER}9
+rpclisten=0.0.0.0:1${L2rpcportmod}0${NODENUMBER}9
 
-restlisten=0.0.0.0:${portprefix}808${NODENUMBER}
+# to have unique port number (otherwise listens on 8080)
+restlisten=${portprefix}808${NODENUMBER}
 
 # The signer node will not look at the chain at all, it only needs to sign
 # things with the keys contained in its wallet. So we don't need to hook it up
@@ -196,8 +197,8 @@ if [ "$1" =  menu ]||[ "$1" =  hexstring ]||[ "$1" =  scp ]||\
       OPTIONS+=(SCP "SSH Download (Commands)")
       OPTIONS+=(HTTP "Browserdownload (bit risky)")
       OPTIONS+=(HEX "Hex-String (Copy+Paste)")
-      OPTIONS+=(STR "BTCPay Connection String")
-
+      OPTIONS+=(BASE64 "base64 tls.cert (Copy+Paste)")
+      OPTIONS+=(MIGRATE "Migrate the signer node")
       CHOICE=$(dialog \
                   --backtitle "RaspiBlitz" \
                   --title "Export Macaroons & TLS.cert" \
@@ -209,12 +210,14 @@ if [ "$1" =  menu ]||[ "$1" =  hexstring ]||[ "$1" =  scp ]||\
       case $CHOICE in
         HEX)
           exportType='hexstring';;
-        STR)
-          exportType='btcpay';;
         SCP)
           exportType='scp';;
         HTTP)
           exportType='http';;
+        BASE64)
+          exportType='base64';;|
+        MIGRATE)
+          exportType='migrate';;|
       esac
   fi
   # load data from config
@@ -231,16 +234,16 @@ if [ "$1" =  menu ]||[ "$1" =  hexstring ]||[ "$1" =  scp ]||\
   elif [ "${exportType}" = "hexstring" ]; then
     clear
     echo "###### HEXSTRING EXPORT ######"
-    echo ""
+    echo
     echo "admin.macaroon:"
     sudo xxd -ps -u -c 1000 /home/bitcoin/.lnd${NODENUMBER}/data/chain/${network}/${chain}net/admin.macaroon
-    echo ""
+    echo
     echo "invoice.macaroon:"
     sudo xxd -ps -u -c 1000 /home/bitcoin/.lnd${NODENUMBER}/data/chain/${network}/${chain}net/invoice.macaroon
-    echo ""
+    echo
     echo "readonly.macaroon:"
     sudo xxd -ps -u -c 1000 /home/bitcoin/.lnd${NODENUMBER}/data/chain/${network}/${chain}net/readonly.macaroon
-    echo ""
+    echo
     echo "tls.cert:"
     sudo xxd -ps -u -c 1000 /home/bitcoin/.lnd${NODENUMBER}/tls.cert
     echo
@@ -249,36 +252,58 @@ if [ "$1" =  menu ]||[ "$1" =  hexstring ]||[ "$1" =  scp ]||\
   # SHH / SCP File Download
   ###########################
   elif [ "${exportType}" = "scp" ]; then
-    local_ip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+    local_ip=$(hostname -I |  awk '{print $1}')
     clear
     echo "###### DOWNLOAD BY SCP ######"
     echo "Copy, paste and execute these commands in your client terminal to download the files."
     echo "The password needed during download is your Password A."
-    echo ""
+    echo
     echo "Macaroons:"
     echo "scp bitcoin@${local_ip}:/home/bitcoin/.lnd${NODENUMBER}/data/chain/${network}/${chain}net/\*.macaroon ./"
-    echo ""
+    echo
     echo "TLS Certificate:"
     echo "scp bitcoin@${local_ip}:/home/bitcoin/.lnd${NODENUMBER}/tls.cert ./"
-    echo ""
+    echo
+
+# migrate the signer node
+  elif [ "${exportType}" = "migrate" ]; then
+    local_ip=$(hostname -I |  awk '{print $1}')
+    clear
+    echo "###### DOWNLOAD BY SCP ######"
+    echo "Copy, paste and execute these commands in your client /home/bitcoin/ terminal to download the files."
+    echo "The password needed during download is your Password A."
+    echo
+    echo "LND dir"
+    echo "scp -r bitcoin@${local_ip}:/home/bitcoin/.lnd${NODENUMBER} ./"
+    echo
+    echo "TLS.cert only:"
+    echo "scp bitcoin@${local_ip}:/home/bitcoin/.lnd${NODENUMBER}/tls.cert ./"
+    echo
+
+  elif [ "${exportType}" = "base64" ]; then
+    # base64 export -import
+    # export
+    base64 -w0 /home/bitcoin/.lnd1/tls.cert
+    # import at the watch-only node
+    echo "${base64tlscert}" | base64 -d | sudo tee /home/bitcoin/.lnd1/tls.remote.cert
 
   ###########################
   # HTTP File Download
   ###########################
   elif [ "${exportType}" = "http" ]; then
-    local_ip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+    local_ip=$(hostname -I |  awk '{print $1}')
     randomPortNumber=$(shuf -i 20000-39999 -n 1)
     sudo ufw allow from 192.168.0.0/16 to any port ${randomPortNumber} comment 'temp http server'
     clear
     echo "###### DOWNLOAD BY HTTP ######"
-    echo ""
+    echo
     echo "Open in your browser --> http://${local_ip}:${randomPortNumber}"
-    echo ""
+    echo
     echo "You need to be on the same local network - not reachable from outside."
     echo "In browser click on files or use 'save as' from context menu to download."
-    echo ""
+    echo
     echo "Temp HTTP Server is running - use CTRL+C to stop when you are done"
-    echo ""
+    echo
     cd
     randomFolderName=$(shuf -i 100000000-900000000 -n 1)
     mkdir ${randomFolderName}
