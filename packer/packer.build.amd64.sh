@@ -14,4 +14,4 @@ sudo apt-get install -y qemu-system
 # Build the image
 echo -e "\nBuilding image..."
 cd debian
-PACKER_LOG=1 packer build -only=qemu debian-11.4-amd64.json
+PACKER_LOG=1 packer build -only=qemu debian-11.5-amd64.json
