@@ -2,6 +2,7 @@
 
 ## What's new in Version 1.9.0 of RaspiBlitz?
 
+- New: Automated disk image build for amd64 (VM, laptop, desktop, server) [details](https://github.com/rootzoll/raspiblitz/tree/dev/ci/README.md)
 - New: Support of X708 UPS HAT [details](https://github.com/rootzoll/raspiblitz/pull/3087)
 - Update: Bitcoin Core v24.0 [details](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-24.0.md)
 - Update: LND v0.15.4 [details](https://github.com/lightningnetwork/lnd/releases/tag/v0.15.4-beta
@@ -20,7 +21,7 @@
 - Update: Balance of Satoshis 13.6.0 (BOS) [details](https://github.com/alexbosworth/balanceofsatoshis/blob/master/CHANGELOG.md#1360)
 - Update: Circuitbreaker v0.3.2 [details](https://github.com/lightningequipment/circuitbreaker/blob/master/README.md)
 - Info: Run RaspiBlitz on Proxmox [details](https://github.com/rootzoll/raspiblitz/tree/dev/alternative.platforms/Proxmox)
-- Fixed: SCB/Emergency-Backup to USB drive (now also with cln emergency file)
+- Fixed: SCB/Emergency-Backup to USB drive (now also with cln emergency.recover file)
 
 ## What's new in Version 1.8.0c of RaspiBlitz?
 
