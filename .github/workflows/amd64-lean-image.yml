@@ -2,13 +2,13 @@ name: amd64-lean-image-build
 
 on:
   push:
-    branches: [ "add-arm64-rpi-image" ]
+    branches: [ "add-amd64-image-build" ]
     paths:
       - 'build_sdcard.sh'
       - 'home.admin/**'
       - 'ci/amd64/**'
   pull_request:
-    branches: [ "add-arm64-rpi-image" ]
+    branches: [ "add-amd64-image-build" ]
     paths:
       - 'build_sdcard.sh'
       - 'home.admin/**'

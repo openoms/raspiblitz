@@ -22,7 +22,7 @@ with the [Makefile](https://github.com/rootzoll/raspiblitz/blob/dev/Makefile)
     git checkout dev
     make amd64-fatpack-image
     ```
-* find the image and sh256 hashes in the `builds` directory
+* find the image and sh256 hashes in the `ci/amd64/builds` directory
 
 ## Images generated in github actions
 Find the images in the green runs in github actions at:
