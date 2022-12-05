@@ -2,17 +2,17 @@ name: amd64-lean-image-build
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "add-arm64-rpi-image" ]
     paths:
       - 'build_sdcard.sh'
       - 'home.admin/**'
-      - 'ci/**'
+      - 'ci/amd64/**'
   pull_request:
-    branches: [ "dev" ]
+    branches: [ "add-arm64-rpi-image" ]
     paths:
       - 'build_sdcard.sh'
       - 'home.admin/**'
-      - 'ci/**'
+      - 'ci/amd64/**'
   workflow_dispatch:
 
 jobs:
@@ -31,22 +31,22 @@ jobs:
 
       - name: Run the build script
         run: |
-          cd ci
+          cd ci/amd64
           bash packer.build.amd64-lean.sh $GITHUB_ACTOR $GITHUB_HEAD_REF
 
       - name: Compute checksum of the raw image
         run: |
-          cd builds/packer-debian-11.5-amd64-lean-qemu/
+          cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/
           sha256sum debian-11.5-amd64-lean.qcow2 > debian-11.5-amd64-lean.qcow2.sha256
 
       - name: Compress image
         run: |
-          cd builds/packer-debian-11.5-amd64-lean-qemu/
+          cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/
           gzip -v9 debian-11.5-amd64-lean.qcow2
 
       - name: Compute checksum of the compressed image
         run: |
-          cd builds/packer-debian-11.5-amd64-lean-qemu/
+          cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/
           sha256sum debian-11.5-amd64-lean.qcow2.gz > debian-11.5-amd64-lean.qcow2.gz.sha256
 
       - name: Upload the image and checksums
@@ -54,6 +54,6 @@ jobs:
         with:
           name: raspiblitz-amd64-image-${{env.BUILD_DATE}}-${{env.BUILD_VERSION}}
           path: |
-            ${{github.workspace}}/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.sha256
-            ${{github.workspace}}/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.gz
-            ${{github.workspace}}/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.gz.sha256
+            ${{github.workspace}}/ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.sha256
+            ${{github.workspace}}/ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.gz
+            ${{github.workspace}}/ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu/debian-11.5-amd64-lean.qcow2.gz.sha256
