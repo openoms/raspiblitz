@@ -1,12 +1,13 @@
+variable "pack" {}
 variable "github_user" {}
 variable "branch" {}
 
 source "arm" "raspiblitz-arm64-rpi" {
   file_checksum_type    = "sha256"
-  file_checksum_url     = "https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64.img.xz.sha256"
+  file_checksum_url     = "https://raspi.debian.net/tested/20220121_raspi_4_bullseye.img.xz.sha256"
   file_target_extension = "xz"
   file_unarchive_cmd    = ["xz", "--decompress", "$ARCHIVE_PATH"]
-  file_urls             = ["https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64.img.xz"]
+  file_urls             = ["https://raspi.debian.net/tested/20220121_raspi_4_bullseye.img.xz"]
   image_build_method    = "resize"
   image_chroot_env      = ["PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"]
   image_partitions {
@@ -25,7 +26,7 @@ source "arm" "raspiblitz-arm64-rpi" {
     start_sector = "532480"
     type         = "83"
   }
-  image_path                   = "raspiblitz-arm64-rpi.img"
+  image_path                   = "raspiblitz-arm64-rpi-${var.pack}.img"
   image_size                   = "8G"
   image_type                   = "dos"
   qemu_binary_destination_path = "/usr/bin/qemu-aarch64-static"
@@ -51,7 +52,8 @@ build {
   provisioner "shell" {
     environment_vars =  [
       "github_user=${var.github_user}",
-      "branch=${var.branch}"
+      "branch=${var.branch}",
+      "pack=${var.pack}"
     ]
     script = "./raspiblitz.sh"
   }

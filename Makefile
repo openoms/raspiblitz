@@ -4,7 +4,7 @@ CURRENT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 
 amd64-lean-image:
 	cd ci && \
-	bash packer.build.amd64-lean.sh $(GITHUB_USER) $(CURRENT_BRANCH)
+	bash packer.build.amd64-debian.sh lean $(GITHUB_USER) $(CURRENT_BRANCH) 0
 
 	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-lean.qcow2 > raspiblitz-amd64-debian-11.5-lean.qcow2.sha256
@@ -17,7 +17,7 @@ amd64-lean-image:
 
 amd64-fatpack-image:
 	cd ci && \
-	bash packer.build.amd64-fatpack.sh $(GITHUB_USER) $(CURRENT_BRANCH)
+	bash packer.build.amd64-debian.sh fatpack $(GITHUB_USER) $(CURRENT_BRANCH)
 
 	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-fatpack.qcow2 > raspiblitz-amd64-debian-11.5-fatpack.qcow2.sha256
