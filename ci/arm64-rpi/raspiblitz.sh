@@ -7,6 +7,8 @@ if [ "${pack}" = lean ]; then
   fatpack=0
 elif [ "${pack}" = fatpack ]; then
   fatpack=1
+  # make /dev/shm world writable
+  sudo chmod 777 /dev/shm
 else
   fatpack=0
 fi

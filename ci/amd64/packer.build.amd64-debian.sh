@@ -17,7 +17,6 @@ else
   pack=lean
 fi
 
-
 if [ $# -gt 1 ]; then
   github_user=$2
 else
@@ -34,5 +33,5 @@ fi
 echo -e "\nBuilding image..."
 cd debian
 PACKER_LOG=1 packer build \
- -var github_user=${github_user} -var branch=${branch} -var "pack=${pack}" \
+ -var github_user=${github_user} -var branch=${branch} -var pack=${pack} \
  -only=qemu amd64-debian.json
