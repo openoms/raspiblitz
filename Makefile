@@ -6,24 +6,24 @@ amd64-lean-image:
 	cd ci && \
 	bash packer.build.amd64-lean.sh $(GITHUB_USER) $(CURRENT_BRANCH)
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu && \
-	sha256sum debian-11.5-amd64-lean.qcow2 > debian-11.5-amd64-lean.qcow2.sha256
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	sha256sum raspiblitz-amd64-debian-11.5-lean.qcow2 > raspiblitz-amd64-debian-11.5-lean.qcow2.sha256
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu && \
-	gzip -v9 debian-11.5-amd64-lean.qcow2
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	gzip -v9 raspiblitz-amd64-debian-11.5-lean.qcow2
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-lean-qemu && \
-	sha256sum debian-11.5-amd64-lean.qcow2.gz > debian-11.5-amd64-lean.qcow2.gz.sha256
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	sha256sum raspiblitz-amd64-debian-11.5-lean.qcow2.gz > raspiblitz-amd64-debian-11.5-lean.qcow2.gz.sha256
 
 amd64-fatpack-image:
 	cd ci && \
 	bash packer.build.amd64-fatpack.sh $(GITHUB_USER) $(CURRENT_BRANCH)
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-fatpack-qemu && \
-	sha256sum debian-11.5-amd64-fatpack.qcow2 > debian-11.5-amd64-fatpack.qcow2.sha256
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	sha256sum raspiblitz-amd64-debian-11.5-fatpack.qcow2 > raspiblitz-amd64-debian-11.5-fatpack.qcow2.sha256
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-fatpack-qemu && \
-	gzip -v9 debian-11.5-amd64-fatpack.qcow2
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	gzip -v9 raspiblitz-amd64-debian-11.5-fatpack.qcow2
 
-	cd ci/amd64/builds/packer-debian-11.5-amd64-fatpack-qemu && \
-	sha256sum debian-11.5-amd64-fatpack.qcow2.gz > debian-11.5-amd64-fatpack.qcow2.gz.sha256
+	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	sha256sum raspiblitz-amd64-debian-11.5-fatpack.qcow2.gz > raspiblitz-amd64-debian-11.5-fatpack.qcow2.gz.sha256
