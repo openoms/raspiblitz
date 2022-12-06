@@ -218,7 +218,7 @@ esac
 # AUTO-DETECTION: OPERATINGSYSTEM
 # ---------------------------------------
 if [ $(cat /etc/os-release 2>/dev/null | grep -c 'Debian') -gt 0 ]; then
-  if [ $(uname -n | grep -c 'raspberrypi') -gt 0 ] && [ "${cpu}" = aarch64 ]; then
+  if [ -f /etc/apt/sources.list.d/raspi.list ] && [ "${cpu}" = aarch64 ]; then
     # default image for RaspberryPi
     baseimage="raspios_arm64"
   elif [ $(uname -n | grep -c 'rpi') -gt 0 ] && [ "${cpu}" = aarch64 ]; then

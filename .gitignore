@@ -8,3 +8,4 @@ lightning_pb2_grpc.pyc
 /.vagrant/
 ci/amd64/builds
 ci/arm64-rpi/raspiblitz-arm64-rpi*
+ci/arm64-rpi/.packer*
