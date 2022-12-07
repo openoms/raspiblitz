@@ -14,4 +14,4 @@ else
 fi
 
 echo 'Build RaspiBlitz ...'
-sudo bash build_sdcard.sh -f ${fatpack} -u ${github_user} -b ${branch} -d headless -t false -w off -i false
+bash build_sdcard.sh -f ${fatpack} -u ${github_user} -b ${branch} -d headless -t false -w off -i false
