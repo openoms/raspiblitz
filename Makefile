@@ -8,15 +8,15 @@ amd64-lean-image:
 	bash packer.build.amd64-debian.sh lean $(GITHUB_USER) $(CURRENT_BRANCH) 0
 
 	# Compute checksum of the raw image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-lean-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-lean.qcow2 > raspiblitz-amd64-debian-11.5-lean.qcow2.sha256
 
 	# Compress image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-lean-qemu && \
 	gzip -v9 raspiblitz-amd64-debian-11.5-lean.qcow2
 
 	# Compute checksum of the compressed image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-lean-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-lean-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-lean.qcow2.gz > raspiblitz-amd64-debian-11.5-lean.qcow2.gz.sha256
 
 amd64-fatpack-image:
@@ -25,15 +25,15 @@ amd64-fatpack-image:
 	bash packer.build.amd64-debian.sh fatpack $(GITHUB_USER) $(CURRENT_BRANCH)
 
 	# Compute checksum of the raw image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-fatpack-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-fatpack.qcow2 > raspiblitz-amd64-debian-11.5-fatpack.qcow2.sha256
 
 	# Compress image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-fatpack-qemu && \
 	gzip -v9 raspiblitz-amd64-debian-11.5-fatpack.qcow2
 
 	# Compute checksum of the compressed image
-	cd ci/amd64/builds/packer-raspiblitz-amd64-debian-11.5-fatpack-qemu && \
+	cd ci/amd64/builds/raspiblitz-amd64-debian-11.5-fatpack-qemu && \
 	sha256sum raspiblitz-amd64-debian-11.5-fatpack.qcow2.gz > raspiblitz-amd64-debian-11.5-fatpack.qcow2.gz.sha256
 
 arm64-rpi-lean-image:
