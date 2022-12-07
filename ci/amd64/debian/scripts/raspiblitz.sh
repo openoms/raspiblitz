@@ -3,12 +3,10 @@
 echo 'Download the build_sdcard.sh script ...'
 wget https://raw.githubusercontent.com/${github_user}/raspiblitz/${branch}/build_sdcard.sh
 
-if [ "${pack}" = lean ]; then
-  fatpack=0
-elif [ "${pack}" = fatpack ]; then
-  fatpack=1
+if [ ${pack} = "fatpack" ]; then
+  fatpack="1"
 else
-  fatpack=0
+  fatpack="0"
 fi
 
 if [ "${fatpack}" = "1" ]; then

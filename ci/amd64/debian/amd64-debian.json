@@ -134,7 +134,7 @@
         "no_proxy={{user `no_proxy`}}",
         "github_user={{user `github_user`}}",
         "branch={{user `branch`}}",
-        "fatpack={{user `fatpack`}}"
+        "pack={{user `pack`}}"
       ],
       "execute_command": "echo 'raspiblitz' | {{.Vars}} sudo -S -E sh -eux '{{.Path}}'",
       "expect_disconnect": true,
