@@ -33,5 +33,5 @@ fi
 echo -e "\nBuilding image..."
 cd debian
 PACKER_LOG=1 packer build \
- -var github_user=${github_user} -var branch=${branch} -var pack=${pack} \
+ --var pack=${pack} --var github_user=${github_user} --var branch=${branch}  \
  -only=qemu amd64-debian.json
