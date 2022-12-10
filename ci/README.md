@@ -105,11 +105,23 @@ After the image is built (and there is no exit with errors) the next steps are:
 * `template`  - image filename
 * `output_directory` - directory under builds where the image will be placed
 * the `pi` user is given passwordless sudo access and used for the image setup
+* use `file_checksum`  instead of `file_checksum_url`. The image must be downloaded and verified with PGP manually to fill the field:
+  ```
+  # image
+  wget https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64.img.xz
+  # signature
+  wget https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64.img.xz.sig
+  # hash
+  wget https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64.img.xz.sha256
+
+  curl https://www.raspberrypi.org/raspberrypi_downloads.gpg.key | gpg --import
+
+  sha256sum -c 2022-09-22-raspios-bullseye-arm64.img.xz.sha256 && \
+  gpg --verify 2022-09-22-raspios-bullseye-arm64.img.xz.sig
+
+  cat 2022-09-22-raspios-bullseye-arm64.img.xz.sha256
+  ```
 ### VNC
 * can follow the setup locally in VNC with the port stated in the first part of the logs eg: `Found available VNC port: 5952 on IP: 127.0.0.1`
 ### Flashing
 * using `sudo qemu-img dd bs=4M if=raspiblitz-amd64-debian-11.5-lean.qcow2 of=/dev/sdd` changed the UUID so it won't boot without editing the GRUB
-
-
-
-check the hash of base image instead of url
