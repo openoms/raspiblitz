@@ -1,3 +1,21 @@
+#!/bin/bash -e
+
+sudo apt install -y \
+  wget \
+  curl \
+  ca-certificates \
+  dosfstools \
+  fdisk \
+  gdisk \
+  kpartx \
+  libarchive-tools \
+  parted \
+  psmisc \
+  qemu-utils \
+  sudo \
+  xz-utils \
+  qemu-user-static
+
 # Install packer
 echo -e "\nInstalling Packer..."
 if ! packer version; then
@@ -29,20 +47,6 @@ cd packer-builder-arm
 git reset --hard 6636c687ece53f7d1f5f2b35aa41f0e6132949c4
 go mod download
 go build
-
-sudo apt install -y \
-  ca-certificates \
-  dosfstools \
-  fdisk \
-  gdisk \
-  kpartx \
-  libarchive-tools \
-  parted \
-  psmisc \
-  qemu-utils \
-  sudo \
-  xz-utils \
-  qemu-user-static
 
 if [ $# -gt 0 ]; then
   pack=$1

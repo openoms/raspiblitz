@@ -17,6 +17,7 @@ with the [Makefile](https://github.com/rootzoll/raspiblitz/blob/dev/Makefile)
   * Ubuntu Live
 * build process:
     ```
+    sudo apt install -y git make
     git clone https://github.com/rootzoll/raspiblitz
     cd raspiblitz
     git checkout dev
