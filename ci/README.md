@@ -5,7 +5,7 @@ The workflow locally and in github actions generates a .qcow2 format amd64 image
     * written to disk and booted with legacy boot (non-UEFI)
 
 * The images are built using the dev branch.
-* The lean image has no Gcd ci anome desktop or WebUI installed.
+* The lean image has no Gnome desktop or WebUI installed.
 * Issue: https://github.com/rootzoll/raspiblitz/issues/3053
 * The templates are made using: https://github.com/chef/bento
 
@@ -18,7 +18,7 @@ with the [Makefile](https://github.com/rootzoll/raspiblitz/blob/dev/Makefile)
   * Ubuntu Live
 * build process:
     ```
-    sudo apt install -y git make
+    sudo apt update && sudo apt install -y git make
     git clone https://github.com/rootzoll/raspiblitz
     cd raspiblitz
     git checkout dev

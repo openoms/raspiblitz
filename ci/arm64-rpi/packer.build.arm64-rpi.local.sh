@@ -9,20 +9,23 @@ sudo apt install -y \
   fdisk \
   gdisk \
   kpartx \
-  libarchive-tools \
   parted \
   psmisc \
   qemu-utils \
   sudo \
-  xz-utils \
-  qemu-user-static
+  xz-utils || exit 1
+#  || exit 1
+#libarchive-tools \
+#binfmt_support \
+#qemu-system-arm 
+
 
 # Install packer
 echo -e "\nInstalling Packer..."
 if ! packer version 2>/dev/null; then
   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
   sudo apt-add-repository -y "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-  sudo apt-get update -y && sudo apt-get install packer -y
+  sudo apt-get update -y && sudo apt-get install packer -y || exit 1
 else
   echo "Packer is installed"
 fi
@@ -31,7 +34,7 @@ echo -e "Installing Go..."
 export PATH=$PATH:/usr/local/go/bin
 if ! go version 2>/dev/null | grep "1.18.9"; then
   wget --progress=bar:force https://go.dev/dl/go1.18.9.linux-amd64.tar.gz
-  echo "015692d2a48e3496f1da3328cf33337c727c595011883f6fc74f9b5a9c86ffa8 go1.18.9.linux-amd64.tar.gz" | sha256sum -c -
+  echo "015692d2a48e3496f1da3328cf33337c727c595011883f6fc74f9b5a9c86ffa8 go1.18.9.linux-amd64.tar.gz" | sha256sum -c - || exit 1
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.9.linux-amd64.tar.gz
   sudo rm -rf go1.18.9.linux-amd64.tar.gz
 else
@@ -46,7 +49,7 @@ cd packer-builder-arm
 git reset --hard 6636c687ece53f7d1f5f2b35aa41f0e6132949c4
 echo -e "\n Building pluginpacker-builder-arm"
 go mod download
-go build
+go build || exit 1
 
 if [ $# -gt 0 ]; then
   pack=$1
