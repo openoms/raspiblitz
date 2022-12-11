@@ -1,33 +1,62 @@
+<!-- omit in toc -->
 # Automated builds
-The workflow locally and in github actions generates a .qcow2 format amd64 image.
-* Tested with
-    * libvirt / virsh / virt-manager (https://virt-manager.org/)
-    * written to disk and booted with legacy boot (non-UEFI)
-
 * The images are built using the dev branch.
 * The lean image has no Gnome desktop or WebUI installed.
 * Issue: https://github.com/rootzoll/raspiblitz/issues/3053
 * The templates are made using: https://github.com/chef/bento
 
+- [Local build](#local-build)
+  - [Generate an arm64-rpi image](#generate-an-arm64-rpi-image)
+  - [Generate an amd64 image](#generate-an-amd64-image)
+- [Images generated in github actions](#images-generated-in-github-actions)
+- [Write the image to a disk connected with USB](#write-the-image-to-a-disk-connected-with-usb)
+  - [Convert qcow2 to raw image](#convert-qcow2-to-raw-image)
+  - [Write to a disk connected with USB with Balena Etcher or `dd`](#write-to-a-disk-connected-with-usb-with-balena-etcher-or-dd)
+  - [Extend the partition on the new disk (optional)](#extend-the-partition-on-the-new-disk-optional)
+- [The first boot](#the-first-boot)
+  - [fatpack image](#fatpack-image)
+  - [lean image](#lean-image)
+    - [Add Gnome desktop (optional)](#add-gnome-desktop-optional)
+- [Workflow notes](#workflow-notes)
+  - [Packer .json settings:](#packer-json-settings)
+  - [VNC](#vnc)
+  - [Flashing](#flashing)
+
 ## Local build
 with the [Makefile](https://github.com/rootzoll/raspiblitz/blob/dev/Makefile)
-### amd64
 * needs ~10 GB free space
 * tested on:
+  * Ubuntu Live (jammy)
   * Debian Bullseye Desktop
-  * Ubuntu Live
-* build process:
-    ```
-    sudo apt update && sudo apt install -y git make
-    git clone https://github.com/rootzoll/raspiblitz
-    cd raspiblitz
-    git checkout dev
-    make amd64-fatpack-image
-    ```
-* find the image and sh256 hashes in the `ci/amd64/builds` directory
+
+### Generate an arm64-rpi image
+* The workflow locally and in github actions generates a .img raw format image for the Raspberry Pi.
+  ```
+  sudo apt update && sudo apt install -y git make
+  git clone https://github.com/rootzoll/raspiblitz
+  cd raspiblitz
+  git checkout dev
+  make arm-rpi-fatpack-image
+  ```
+* find the image and sh256 hashes in the `ci/arm64-rpi/packer-builder-arm` directory
+* the .img.gz file can be written to an SDcard directly with Balena Etcher
+
+### Generate an amd64 image
+The workflow locally and in github actions generates a .qcow2 format amd64 image.
+* Tested with
+    * libvirt / virsh / virt-manager (https://virt-manager.org/)
+    * written to disk and booted with legacy boot (non-UEFI)
+  ```
+  sudo apt update && sudo apt install -y git make
+  git clone https://github.com/rootzoll/raspiblitz
+  cd raspiblitz
+  git checkout dev
+  make amd64-fatpack-image
+  ```
+* find the compressed .qcow2 image and sh256 hashes in the `ci/amd64/builds` directory
 
 ## Images generated in github actions
-Find the images in the green runs in github actions at:
+* Find the images in the green runs in github actions at:
 https://github.com/rootzoll/raspiblitz/actions
 
 ## Write the image to a disk connected with USB
@@ -36,7 +65,9 @@ identify the connected disk with `lsblk` eg `/dev/sdd`
 ###  Convert qcow2 to raw image
 * the raw image is 33.5 GB
     ```
+    # unzip
     gzip -dkv raspiblitz-amd64-debian-11.5-fatpack.qcow2.gz
+    # convert
     qemu-img convert raspiblitz-amd64-debian-11.5-fatpack.qcow2 raspiblitz-amd64-debian-11.5-fatpack.img
     ```
 ### Write to a disk connected with USB with Balena Etcher or `dd`
@@ -85,13 +116,13 @@ The github workflow files are the equivalent of the Makefile commands run locall
 The local repo owner (`GITHUB_ACTOR`) and branch (`GITHUB_HEAD_REF`) is picked up.
 The build_sdcard.sh is downloaded from the source branch and built with the options pack=[lean|fatpack] to set fatpack=[0|1].
 
-The github workflow is running the job in an ubuntu-latest image.
+The github workflow is running the job in an ubuntu-22.04 image.
 
 The amd64 image is built with running a qemu VM
 * installs the base OS (Debian 11.5)
 * connects with ssh and runs the scripts including the build_sdcard.sh
 
-The arm64-rpi image genenaration runs in Docker
+The arm64-rpi image genenaration runs in Docker in github actions and without Docker locally.
 * the base image (RasberryOS) is started in the qemu VM
 * packer runs the build_sdcard.sh directly in the VM
 
@@ -100,7 +131,6 @@ After the image is built (and there is no exit with errors) the next steps are:
 * compress the image with gzip
 * compute checksum of the compressed image
 * (in github actions: upload the artifacts in one .zip file)
-
 
 ### Packer .json settings:
 * `disk_size` - the size op the raw image. The .qcow2 file is compressed.

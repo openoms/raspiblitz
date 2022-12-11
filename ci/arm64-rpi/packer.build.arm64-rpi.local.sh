@@ -1,6 +1,14 @@
 #!/bin/bash -e
 
+if [ "$(uname -n)" = "ubuntu" ]; then
+  sudo add-apt-repository -y universe
+fi
+
 # Install dependencies
+# needed on Ubuntu Live ('lsb_release -cs': jammy)
+sudo apt install qemu-user-static || exit 1
+
+# from https://github.com/mkaczanowski/packer-builder-arm/blob/master/docker/Dockerfile
 sudo apt install -y \
   wget \
   curl \
@@ -9,16 +17,12 @@ sudo apt install -y \
   fdisk \
   gdisk \
   kpartx \
+  libarchive-tools \
   parted \
   psmisc \
   qemu-utils \
   sudo \
   xz-utils || exit 1
-#  || exit 1
-#libarchive-tools \
-#binfmt_support \
-#qemu-system-arm 
-
 
 # Install packer
 echo -e "\nInstalling Packer..."
