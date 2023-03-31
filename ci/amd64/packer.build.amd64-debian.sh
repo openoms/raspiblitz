@@ -26,7 +26,7 @@ fi
 if [ $# -gt 2 ]; then
   branch=$3
 else
-  branch=dev
+  branch=dev-build
 fi
 
 # Build the image

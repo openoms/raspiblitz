@@ -3,7 +3,7 @@ name: amd64-lean-image-build
 on:
   workflow_dispatch:
   push:
-    branches: [ "dev", "v1.8", "v1.9" ]
+    branches: [ "dev-build", "dev", "v1.8", "v1.9" ]
     paths:
       - 'build_sdcard.sh'
       - 'home.admin/bitcoin.install.sh'
