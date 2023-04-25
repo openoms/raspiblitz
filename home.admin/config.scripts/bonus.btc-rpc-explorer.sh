@@ -148,7 +148,7 @@ if [ "$1" = "prestart" ]; then
   if [ "${ElectRS}" == "on" ]; then
 
     # CHECK THAT ELECTRS INDEX IS BUILD (WAITLOOP)
-    # electrs listening in port 50001 means index is build 
+    # electrs listening in port 50001 means index is build
     # Use flags: t = tcp protocol only  /  a = list all connection states (includes LISTEN)  /  n = don't resolve names => no dns spam
     isElectrumReady=$(netstat -tan | grep -c "50001")
     if [ "${isElectrumReady}" == "0" ]; then
@@ -239,7 +239,7 @@ if [ "$1" = "uninstall" ]; then
 
   # always delete user and home directory
   sudo userdel -rf btcrpcexplorer
-  
+
   exit 0
 fi
 
@@ -374,7 +374,7 @@ EOF
 
   # setting value in raspi blitz config
   sudo /home/admin/config.scripts/blitz.conf.sh set BTCRPCexplorer "on"
-  
+
   echo "# needs to finish creating txindex to be functional"
   echo "# monitor with: sudo tail -n 20 -f /mnt/hdd/bitcoin/debug.log"
   echo "# npm audi fix"
@@ -396,7 +396,7 @@ EOF
     sleep 10
   fi
 
-  # needed for API/WebUI as signal that install ran thru 
+  # needed for API/WebUI as signal that install ran thru
   echo "result='OK'"
   exit 0
 fi
@@ -443,7 +443,7 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
   sudo ufw deny 3020
   sudo ufw deny 3021
 
-  # needed for API/WebUI as signal that install ran thru 
+  # needed for API/WebUI as signal that install ran thru
   echo "result='OK'"
   exit 0
 fi
