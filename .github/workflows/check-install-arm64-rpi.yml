@@ -1,0 +1,83 @@
+name: check-install-arm64-rpi
+
+concurrency:
+  group: amd64-lean-image-build-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["dev"]
+    paths:
+      - "home.admin/**"
+  pull_request:
+    branches: ["dev"]
+    paths:
+      - "home.admin/**"
+
+jobs:
+
+  run-on-changed-files:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get changed files
+        id: getfile
+        run: |
+          echo "::set-output name=files::$(git diff --name-only origin/${{ github.base_ref }}..${{ github.head_ref }} | xargs)"
+        shell: bash
+
+      - name: Use changed files
+        run: "echo 'Files that have changed: ${{ steps.getfile.outputs.files }}'"
+
+      - name: Output changed files to a file
+        run: echo "${{ steps.getfile.outputs.files }}" > changed-files.txt
+
+      - name: Upload changed-files.txt as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: changed-files
+          path: changed-files.txt
+
+  check-install-arm64-rpi:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set values
+        run: |
+          echo "BUILD_DATE=$(date +"%Y-%m-%d")" >> $GITHUB_ENV
+          echo "BUILD_VERSION=$(git describe --always --tags)" >> $GITHUB_ENV
+
+      - name: Download the artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: raspiblitz-amd64-image-${{env.BUILD_DATE}}-${{env.BUILD_VERSION}}
+          path: /tmp/raspiblitz-image
+
+      - name: Extract the image
+        run: |
+          cd ${{ github.workspace }}/artifacts
+          gunzip raspiblitz-arm64-rpi-lean.img.gz
+
+      - name: Download changed-files artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: changed-files
+
+      - name: Use the list of changed files
+        run: cat changed-files.txt
+
+      - name: Mount and run script
+        run: |
+          # Use an appropriate command to mount the image
+          # sudo mount /tmp/raspiblitz-image/raspiblitz-amd64-debian-lean.qcow2 /mnt
+          # Run your scripts against the mounted image
+          bash your_script.sh
+
+      - name: Run the build script
+        run: |
+            cd ci/arm64-rpi
+            bash packer.check.arm64-rpi.sh lean $GITHUB_ACTOR $GITHUB_HEAD_REF
