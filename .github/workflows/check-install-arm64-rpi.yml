@@ -1,17 +1,17 @@
 name: check-install-arm64-rpi
 
 concurrency:
-  group: amd64-lean-image-build-${{ github.head_ref }}
+  group: check-install-arm64-rpi-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:
   workflow_dispatch:
   push:
-    branches: ["dev"]
+    branches: ["dev", "ci-check-install"]
     paths:
       - "home.admin/**"
   pull_request:
-    branches: ["dev"]
+    branches: ["dev", "ci-check-install"]
     paths:
       - "home.admin/**"
 

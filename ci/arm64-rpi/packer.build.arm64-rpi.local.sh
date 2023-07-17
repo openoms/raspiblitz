@@ -61,8 +61,8 @@ go build || exit 1
 source ../set_variables.sh
 set_variables "$@"
 
-cp ../arm64-rpi.pkr.hcl ./
-cp ../raspiblitz.sh ./
+cp ../packer.build.arm64-rpi.hcl ./
+cp ../build.raspiblitz.sh ./
 
 echo -e "\n# Build the image"
-packer build ${vars} arm64-rpi.pkr.hcl
+packer build ${vars} packer.build.arm64-rpi.hcl
