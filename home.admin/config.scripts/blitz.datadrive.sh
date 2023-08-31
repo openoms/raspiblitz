@@ -139,11 +139,6 @@ if [ "$1" = "status" ]; then
       #echo "# hdd(${hdd})"
 
       if [ "$(uname -m)" = "x86_64" ]; then
-        if [ $(echo "$testpartition" | grep -c "nvme") = 0 ]; then
-          testParentDisk=$(echo "$testpartition" | sed 's/[^a-z]*//g')
-        else
-          testParentDisk=$(echo "$testpartition" | sed 's/\([^p]*\).*/\1/')
-        fi
         if [ $(echo "$OSPartition" | grep -c "nvme") = 0 ]; then
           OSParentDisk=$(echo "$OSPartition" | sed 's/[^a-z]*//g')
         else
@@ -354,7 +349,6 @@ if [ "$1" = "status" ]; then
 
           # check if its another fullnode implementation data disk
           hddGotMigrationData=""
-          hddGotMigrationDataExtra=""
           if [ "${hddFormat}" = "ext4" ]; then
             # check for other node implementations
             isUmbrelHDD=$(ls /mnt/storage/umbrel/info.json 2>/dev/null | grep -c '.json')
@@ -587,6 +581,7 @@ if [ "$1" = "status" ]; then
   echo
   exit 1
 fi
+# end of status
 
 ######################
 # FORMAT EXT4 or BTRFS
@@ -901,6 +896,7 @@ if [ "$1" = "format" ]; then
     exit 0
   fi
 fi
+# end of format
 
 ########################################
 # Refresh FSTAB for permanent mount
@@ -1100,6 +1096,7 @@ if [ "$1" = "fstab" ]; then
     exit 1
   fi
 fi
+# end of fstab
 
 ########################################
 # RAID with USB Stick for data partition
@@ -1439,6 +1436,7 @@ if [ "$1" = "tempmount" ]; then
   echo "isBTRFS=${isBTRFS}"
   exit 1
 fi
+# end of tempmount
 
 if [ "$1" = "unmount" ]; then
   umount /mnt/hdd 2>/dev/null
