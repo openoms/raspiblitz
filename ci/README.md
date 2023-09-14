@@ -137,7 +137,7 @@ with the [Makefile](https://github.com/rootzoll/raspiblitz/blob/dev/Makefile)
   # install git and make
   apt update && apt install -y git make
   # download the repo (or your fork)
-  git clone https://github.com/rootzoll/raspiblitz
+  git clone https://github.com/raspiblitz/raspiblitz
   cd raspiblitz
   # checkout the desired branch
   git checkout dev

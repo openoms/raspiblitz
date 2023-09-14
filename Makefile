@@ -19,14 +19,14 @@ amd64-lean-desktop-uefi-image:
 
 	# Compress the image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
-	gzip -v9 raspiblitz-amd64-debian-lean.qcow2
+	gzip -kv9 raspiblitz-amd64-debian-lean.qcow2
 
 	# Compute the checksum of the compressed image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
 	sha256sum raspiblitz-amd64-debian-lean.qcow2.gz > raspiblitz-amd64-debian-lean.qcow2.gz.sha256
 
 	# List the generated files
-	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-lean.qcow2.*
+	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-lean.qcow2*
 
 amd64-lean-server-legacyboot-image:
 	# Run the build script
@@ -45,14 +45,14 @@ amd64-lean-server-legacyboot-image:
 
 	# Compress the image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
-	gzip -v9 raspiblitz-amd64-debian-lean.qcow2
+	gzip -kv9 raspiblitz-amd64-debian-lean.qcow2
 
 	# Compute the checksum of the compressed image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
 	sha256sum raspiblitz-amd64-debian-lean.qcow2.gz > raspiblitz-amd64-debian-lean.qcow2.gz.sha256
 
 	# List the generated files
-	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-lean.qcow2.*
+	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-lean.qcow2*
 
 amd64-fatpack-desktop-uefi-image:
 	# Run the build script
@@ -71,14 +71,14 @@ amd64-fatpack-desktop-uefi-image:
 
 	# Compress the image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-fatpack-qemu && \
-	gzip -v9 raspiblitz-amd64-debian-fatpack.qcow2
+	gzip -kv9 raspiblitz-amd64-debian-fatpack.qcow2
 
 	# Compute the checksum of the compressed image
 	cd ci/amd64/builds/raspiblitz-amd64-debian-fatpack-qemu && \
 	sha256sum raspiblitz-amd64-debian-fatpack.qcow2.gz > raspiblitz-amd64-debian-fatpack.qcow2.gz.sha256
 
 	# List the generated files
-	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-fatpack.qcow2.*
+	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-fatpack.qcow2*
 
 arm64-rpi-lean-image:
 	# Run the build script
@@ -94,7 +94,7 @@ arm64-rpi-lean-image:
 
 	# Compress the image
 	cd ci/arm64-rpi/packer-builder-arm  && \
-	gzip -v9 raspiblitz-arm64-rpi-lean.img
+	gzip -kv9 raspiblitz-arm64-rpi-lean.img
 
 	# Compute the checksum of the compressed image
 	cd ci/arm64-rpi/packer-builder-arm  && \
@@ -117,7 +117,7 @@ arm64-rpi-fatpack-image:
 
 	# Compress the image
 	cd ci/arm64-rpi/packer-builder-arm  && \
-	gzip -v9 raspiblitz-arm64-rpi-fatpack.img
+	gzip -kv9 raspiblitz-arm64-rpi-fatpack.img
 
 	# Compute the checksum of the compressed image
 	cd ci/arm64-rpi/packer-builder-arm  && \
