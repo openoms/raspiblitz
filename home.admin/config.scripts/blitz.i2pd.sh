@@ -97,7 +97,7 @@ function bitcoinI2Pstatus {
   echo "# Running the command:"
   echo "bitcoin-cli -netinfo 4"
   echo
-  bitcoin-cli -netinfo 4
+  sudo -u bitcoin bitcoin-cli -netinfo 4
   echo
   echo "# i2pd webconsole:"
   localip=$(hostname -I | awk '{print $1}')
@@ -228,7 +228,7 @@ if [ "$1" = "addseednodes" ]; then
   echo "Add all I2P seed nodes from: https://github.com/bitcoin/bitcoin/blob/master/contrib/seeds/nodes_main.txt"
   i2pSeedNodeList=$(curl -sS https://raw.githubusercontent.com/bitcoin/bitcoin/master/contrib/seeds/nodes_main.txt | grep .b32.i2p:0)
   for i2pSeedNode in ${i2pSeedNodeList}; do
-    bitcoin-cli addnode "$i2pSeedNode" "onetry"
+    sudo -u bitcoin bitcoin-cli addnode "$i2pSeedNode" "onetry"
   done
 
   echo
@@ -236,7 +236,7 @@ if [ "$1" = "addseednodes" ]; then
   sudo tail -n 100 /mnt/hdd/bitcoin/debug.log | grep i2p
   echo
   echo "# Display bitcoin-cli -netinfo 4"
-  bitcoin-cli -netinfo 4
+  sudo -u bitcoin bitcoin-cli -netinfo 4
 
   exit 0
 fi
