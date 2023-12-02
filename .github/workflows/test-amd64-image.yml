@@ -1,8 +1,19 @@
-name: Prepare QEMU Image
+name: test-amd64-image
+
+concurrency:
+  group: amd64-lean-image-build-${{ github.head_ref }}
+  cancel-in-progress: true
 
 on:
   workflow_dispatch:
-
+  push:
+    branches: ["dev", "v1.10"]
+    paths:
+      - "home.admin/cl.install.sh"
+  pull_request:
+    branches: ["dev", "v1.10"]
+    paths:
+      - "home.admin/cl.install.sh"
 jobs:
   prepare-image:
     runs-on: ubuntu-latest
