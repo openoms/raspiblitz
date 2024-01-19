@@ -66,6 +66,8 @@ jobs:
 
       - name: Decompress Image
         run: |
+          unzip artifact.zip
+          ls -la
           gzip -d raspiblitz-amd64-debian-lean.qcow2.gz
 
       - name: Extract Checksum
