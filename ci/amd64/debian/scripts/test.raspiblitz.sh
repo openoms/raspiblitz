@@ -5,5 +5,6 @@ echo '# Check out the branch of the PR (passed down as an env variable)'
 
 echo '# Test the installs'
 
-echo 'cl.install.sh on'
-/home/admin/config.scripts/cl.install.sh on
+command="/home/admin/config.scripts/cl.install.sh on"
+echo "# Running: ${command}"
+${command}
