@@ -44,7 +44,7 @@ jobs:
           echo "BRANCH_NAME: ${{env.BRANCH_NAME}}"
           echo "GITHUB_USER: ${{steps.set_values.outputs.GITHUB_USER}}"
 
-      - name: Get Last Successful Workflow Run ID
+      - name: Get the last successful workflow run ID
         id: get-run-id
         run: |
           RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -52,7 +52,7 @@ jobs:
             | jq -r '.workflow_runs[0].id')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
-      - name: Get Artifact Download URL
+      - name: Get the artifact download URL
         id: get-artifact-url
         run: |
           ARTIFACT_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -60,24 +60,24 @@ jobs:
             | jq -r '.artifacts[0].archive_download_url')
           echo "ARTIFACT_URL=$ARTIFACT_URL" >> $GITHUB_OUTPUT
 
-      - name: Download Artifact
+      - name: Download the artifact
         run: |
           curl -sS -L -o artifact.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ steps.get-artifact-url.outputs.ARTIFACT_URL }}
 
-      - name: Decompress Image
+      - name: Decompress the image
         run: |
           unzip artifact.zip
           ls -la
           gzip -d raspiblitz-amd64-debian-lean.qcow2.gz
 
-      - name: Extract Checksum
+      - name: Extract the checksum
         id: checksum
         run: |
           CHECKSUM=$(cat raspiblitz-amd64-debian-lean.qcow2.sha256 | awk '{print $1}')
           echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
 
-      - name: Run the test script
+      - name: Mount the image and run the test.raspiblitz.sh
         run: |
           echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}"
           cd ci/amd64
-          bash packer.build.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
+          bash test.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}

@@ -30,7 +30,7 @@ source "qemu" "debian" {
 
   disk_image = true
   #TODO
-  image_path = "path/to/your/raspiblitz-amd64-debian-lean.qcow2"
+  image_path = "../../../raspiblitz-amd64-debian-lean.qcow2"
 
   cpus             = var.cpus
   disk_size        = var.disk_size
