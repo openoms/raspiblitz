@@ -80,4 +80,4 @@ jobs:
         run: |
           echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}"
           cd ci/amd64
-          bash test.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
+          bash packer.test.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
