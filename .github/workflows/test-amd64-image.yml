@@ -15,7 +15,7 @@ on:
     #paths:
     #  - "home.admin/cl.install.sh"
 jobs:
-  prepare-image:
+  test-amd64-image:
     runs-on: ubuntu-latest
 
     steps:
@@ -74,10 +74,10 @@ jobs:
         id: checksum
         run: |
           CHECKSUM=$(cat raspiblitz-amd64-debian-lean.qcow2.sha256 | awk '{print $1}')
-          echo "::set-output name=value::$CHECKSUM"
+          echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
 
-      - name: Run the build script
+      - name: Run the test script
         run: |
-          echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
+          echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}"
           cd ci/amd64
-          bash packer.build.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
+          bash packer.build.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.CHECKSUM}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
