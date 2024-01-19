@@ -24,7 +24,7 @@ source ../set_variables.sh
 set_variables "$@"
 
 # Build the image
-echo "# Build the image ..."
+echo "# Start the image ..."
 cd debian
 packer init -upgrade .
 command="PACKER_LOG=1 packer build ${vars} -only=qemu packer.build.amd64-debian.hcl"
