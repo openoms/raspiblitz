@@ -62,7 +62,7 @@ jobs:
 
       - name: Download Artifact
         run: |
-          curl -L -o artifact.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ steps.get-artifact-url.outputs.ARTIFACT_URL }}
+          curl -sS -L -o artifact.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ steps.get-artifact-url.outputs.ARTIFACT_URL }}
 
       - name: Decompress Image
         run: |
