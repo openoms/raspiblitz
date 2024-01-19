@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
   push:
     branches: ["dev", "v1.10", "test-ci"]
-    paths:
-      - "home.admin/cl.install.sh"
+    #paths:
+    #  - "home.admin/cl.install.sh"
   pull_request:
     branches: ["dev", "v1.10", "test-ci"]
-    paths:
-      - "home.admin/cl.install.sh"
+    #paths:
+    #  - "home.admin/cl.install.sh"
 jobs:
   prepare-image:
     runs-on: ubuntu-latest
