@@ -26,8 +26,8 @@ set_variables "$@"
 # Build the image
 echo "# Start the image ..."
 cd debian
-packer init -upgrade .
+packer init -upgrade test.amd64-debian.pkr.hcl
 command="PACKER_LOG=1 packer build ${vars} -only=qemu packer.build.amd64-debian.hcl"
 echo "# Running: $command"
-if [ ${#vars} -eq 0 ];then exit 1;fi
+if [ ${#vars} -eq 0 ]; then exit 1; fi
 PACKER_LOG=1 packer build ${vars} -only=qemu.debian test.amd64-debian.pkr.hcl || exit 1
