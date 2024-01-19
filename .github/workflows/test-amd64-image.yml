@@ -32,9 +32,9 @@ jobs:
             echo "BRANCH_NAME=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
           fi
           if [[ "${{github.event_name}}" == "pull_request" ]]; then
-            echo "::set-output name=github_user::${{github.event.pull_request.head.repo.owner.login}}"
+            echo "GITHUB_USER=${{github.event.pull_request.head.repo.owner.login}}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=github_user::$(echo ${{github.repository}} | cut -d'/' -f1)"
+            echo "GITHUB_USER=$(echo ${{github.repository}} | cut -d'/' -f1)" >> $GITHUB_OUTPUT
           fi
 
       - name: Display values
@@ -42,27 +42,27 @@ jobs:
           echo "BUILD_DATE: ${{env.BUILD_DATE}}"
           echo "BUILD_VERSION: ${{env.BUILD_VERSION}}"
           echo "BRANCH_NAME: ${{env.BRANCH_NAME}}"
-          echo "GITHUB_USER: ${{steps.set_values.outputs.github_user}}"
+          echo "GITHUB_USER: ${{steps.set_values.outputs.GITHUB_USER}}"
 
       - name: Get Last Successful Workflow Run ID
         id: get-run-id
         run: |
           RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/rootzoll/raspiblitz/actions/workflows/amd64-lean-image.yml/runs?branch=dev&status=success" \
+            "https://api.github.com/repos/raspiblitz/raspiblitz/actions/workflows/amd64-lean-image.yml/runs?branch=dev&status=success" \
             | jq -r '.workflow_runs[0].id')
-          echo "::set-output name=run_id::$RUN_ID"
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Get Artifact Download URL
         id: get-artifact-url
         run: |
           ARTIFACT_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/rootzoll/raspiblitz/actions/runs/${{ steps.get-run-id.outputs.run_id }}/artifacts" \
+            "https://api.github.com/repos/raspiblitz/raspiblitz/actions/runs/${{ steps.get-run-id.outputs.RUN_ID }}/artifacts" \
             | jq -r '.artifacts[0].archive_download_url')
-          echo "::set-output name=url::$ARTIFACT_URL"
+          echo "ARTIFACT_URL=$ARTIFACT_URL" >> $GITHUB_OUTPUT
 
       - name: Download Artifact
         run: |
-          curl -L -o artifact.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ steps.get-artifact-url.outputs.url }}
+          curl -L -o artifact.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ steps.get-artifact-url.outputs.ARTIFACT_URL }}
 
       - name: Decompress Image
         run: |
@@ -76,6 +76,6 @@ jobs:
 
       - name: Run the build script
         run: |
-          echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.github_user}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.github_user}} --branch ${{env.BRANCH_NAME}}
+          echo "Using the variables: --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
           cd ci/amd64
-          bash packer.build.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.github_user}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.github_user}} --branch ${{env.BRANCH_NAME}}
+          bash packer.build.amd64-debian.sh --image_link ${{github.workspace}}/raspiblitz-amd64-debian-lean.qcow2 --image_checksum ${{steps.checksum.outputs.value}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}} --github_user ${{steps.set_values.outputs.GITHUB_USER}} --branch ${{env.BRANCH_NAME}}
