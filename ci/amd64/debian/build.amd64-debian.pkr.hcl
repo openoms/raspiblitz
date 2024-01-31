@@ -17,6 +17,17 @@ variable "disk_size" { default = "30000" }
 variable "memory" { default = "4096" }
 variable "cpus" { default = "4" }
 
+packer {
+  required_version = ">= 1.7.0, < 2.0.0"
+
+  required_plugins {
+    qemu = {
+      source  = "github.com/hashicorp/qemu"
+      version = ">= 1.0.0, < 2.0.0"
+    }
+  }
+}
+
 locals {
   name_template = "${var.hostname}-debian-${var.pack}"
   bios_file     = var.boot == "uefi" ? "OVMF.fd" : "bios-256k.bin"
@@ -103,16 +114,5 @@ build {
       "./scripts/build.raspiblitz.sh",
       "./scripts/cleanup.sh"
     ]
-  }
-}
-
-packer {
-  required_version = ">= 1.7.0, < 2.0.0"
-
-  required_plugins {
-    qemu = {
-      source  = "github.com/hashicorp/qemu"
-      version = ">= 1.0.0, < 2.0.0"
-    }
   }
 }

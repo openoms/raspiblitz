@@ -2,6 +2,33 @@ SHELL = /bin/bash
 GITHUB_ACTOR = $(shell git remote -v | grep origin | head -1 | cut -d/ -f4)
 GITHUB_HEAD_REF = $(shell git rev-parse --abbrev-ref HEAD)
 
+
+test-amd64-image:
+	# Run the build script
+	cd ci/amd64 && \
+	sudo bash packer.test.amd64-debian.sh \
+	  --pack lean \
+	  --github_user $(GITHUB_ACTOR) \
+	  --branch $(GITHUB_HEAD_REF) \
+	  --preseed_file preseed.cfg \
+	  --boot uefi \
+	  --desktop gnome
+
+	# Compute the checksum of the qemu image
+	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
+	sha256sum raspiblitz-amd64-debian-lean.qcow2 > raspiblitz-amd64-debian-lean.qcow2.sha256
+
+	# Compress the image
+	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
+	gzip -v9 raspiblitz-amd64-debian-lean.qcow2
+
+	# Compute the checksum of the compressed image
+	cd ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu && \
+	sha256sum raspiblitz-amd64-debian-lean.qcow2.gz > raspiblitz-amd64-debian-lean.qcow2.gz.sha256
+
+	# List the generated files
+	ls -lah ci/amd64/builds/raspiblitz-amd64-debian-lean-qemu/raspiblitz-amd64-debian-lean.qcow2.*
+
 amd64-lean-desktop-uefi-image:
 	# Run the build script
 	cd ci/amd64 && \
