@@ -6,6 +6,8 @@ sudo chmod 777 /dev/shm
 # make /var/cache/raspiblitz world writable for qemu
 sudo chmod 777 /var/cache/raspiblitz
 
+git config --global --add safe.directory /home/admin/raspiblitz
+
 echo '# Check out the branch of the PR (passed down as an env variable)'
 /home/admin/config.scripts/blitz.github.sh ${branch} ${github_user}
 
