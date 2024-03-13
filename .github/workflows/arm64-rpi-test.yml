@@ -20,7 +20,6 @@ on:
 
 jobs:
   arm64-rpi-test:
-    needs: arm64-rpi-base-image-build
     runs-on: ubuntu-22.04
     steps:
       - name: Maximize build space
