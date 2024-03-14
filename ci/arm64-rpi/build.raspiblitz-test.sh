@@ -13,6 +13,10 @@ echo '# Check out the branch of the PR (passed down as an env variable)'
 
 echo '# Test the installs'
 
-command="sudo /home/admin/config.scripts/bonus.jam.sh on"
+command="/home/admin/config.scripts/bonus.joinmarket.sh install"
+echo "# Running: ${command}"
+${command}
+
+command="/home/admin/config.scripts/bonus.jam.sh install"
 echo "# Running: ${command}"
 ${command}
