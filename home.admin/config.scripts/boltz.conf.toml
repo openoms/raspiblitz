@@ -1,0 +1,216 @@
+configpath = "/home/boltz/.boltz/boltz.conf"
+dbpath = "/home/boltz/.boltz/boltz.db"
+logpath = "/home/boltz/.boltz/boltz.log"
+datadir = "/home/boltz/.boltz"
+
+# This mnemonic is not for the wallet that holds the onchain coins
+# but the claim and refund keys are derived from it
+mnemonicpath = "/home/boltz/.boltz/seed.dat"
+
+# Possible values are: error, warning, info, verbose, debug, silly
+loglevel = "debug"
+
+[sidecar]
+    [sidecar.grpc]
+    host = "127.0.0.1"
+    port = 10_001
+
+    [sidecar.api]
+    host = "127.0.0.1"
+    port = 10_002
+
+    [sidecar.ws]
+    host = "127.0.0.1"
+    port = 10_003
+
+# The backend needs a PostgreSQL database
+[postgres]
+host = "127.0.0.1"
+port = 5432
+database = "boltz"
+username = "boltz"
+password = "boltz"
+
+# Logs can be sent to a Loki log aggregator
+# lokiHost = "http://127.0.0.1:3100"
+# lokiNetwork = "regtest"
+
+# This value configures the type of the lockup address of normal Submarine Swaps:
+#   - false: P2SH nested P2WSH
+#   - true: P2WSH
+swapwitnessaddress = false
+
+# Enables the prepay minerfee Reverse Submarine Swap procotol
+# If this value is "true", an invoice for the miner fee has to be paid
+# before hold invoice of the Revese Swap
+prepayminerfee = false
+
+# This is the REST API that should be exposed to the public
+# It does not support HTTPS but only plaintext HTTP. A reverse
+# proxy should be setup with a web server like Nginx
+[api]
+host = "127.0.0.1"
+port = 9_001
+
+# Configure CORS headers set by the backend
+# "" to disable
+cors = "*"
+
+# The backend can expose a metrics endpoint about swap count, volume, etc
+# [prometheus]
+# host = "127.0.0.1"
+# port = 9_092
+
+# And this the gRPC API that is used by the boltz-cli executable
+[grpc]
+host = "127.0.0.1"
+port = 9_000
+certpath = "/home/boltz/.boltz/tls.cert"
+keypath = "/home/boltz/.boltz/tls.key"
+
+# The interval in seconds at which new rates for pairs that
+# do not have a hardcoded rate should be updates
+[rates]
+interval = 1
+
+# Boltz Backend allows for backing up LND SCBs and
+# the database to a S3 API compatible storage
+[backup]
+# Cron interval at which a new backup should be uploaded. The default value is daily
+interval = "0 0 * * *"
+
+  [backup.simpleStorage]
+  bucket = ""
+  endpoint = ""
+  port = 443
+  useSSL = true
+  accessKey = ""
+  secretKey = ""
+
+# Boltz backend supports sending messages to Mattermost after successful and
+# failed Swaps and if the wallet or channel balance is below a configurable threshold
+[notification]
+mattermostUrl = ""
+token = ""
+channel = ""
+# A string to prefix all messages with
+prefix = "signet"
+# Optionally, important alerts can be sent to a different channel
+# channelAlerts = ""
+
+# Interval in minutes at which the wallet and channel balances should be checked
+interval = 1
+
+[swap]
+# Chains on which claim transactions should be deferred
+# Deferring means not broadcasting claim transactions immediately,
+# but waiting for cooperative key path spend of the client
+# or batching a script path spend
+deferredClaimSymbols = ["BTC"]
+
+# Interval at which batched script path spends of deferred claim transactions should be done
+batchClaimInterval = '*/15 * * * *'
+
+# Tolerance in minutes before swap expiry for a claim transaction to be eligible for batching
+expiryTolerance = 120
+
+    # Cost of claim transaction * multiplier = minimial swap size
+    [swap.minSwapSizeMultipliers]
+    reverse = 6
+    chain = 6
+
+
+# The array "pairs" configures the trading pairs that Boltz should support
+# A pair can have the following options:
+# - "base" (required): base currency
+# - "quote" (required): quote currency
+# - "timeoutDelta": after how many minutes a Swap of that pair should timeout
+# - "rate": the rate for a pair can be hardcoded (only sensible for same currency pairs);
+#           if the rate is not hardcoded the mean value from these exchanges will be used:
+#             - Binance
+#             - Bitfinex
+#             - Coinbase Pro
+#             - Kraken
+#             - Poloniex
+# - "fee": percentage of the swapped amount that should be charged as fee
+# - "swapInFee" (optional): same as "fee" but for swaps from onchain to lightning; defaults to "fee" if not set
+[[pairs]]
+base = "BTC"
+quote = "BTC"
+rate = 1
+
+maxSwapAmount = 10_000_000
+minSwapAmount = 10_000
+
+# Whether the pair should be available in the legacy v1 API
+# Defaults to false
+isLegacy = true
+
+# Expiry of the invoices generated for reverse swaps of this pair
+# If not set, half of the expiry time of the reverse swap will be used
+invoiceExpiry = 7200
+
+    # Timeouts in minutes
+    [pairs.timeoutDelta]
+    reverse = 1440
+    swapMinimal = 1440
+    swapMaximal = 2880
+    swapTaproot = 10080
+
+
+[[currencies]]
+symbol = "BTC"
+network = "bitcoinTestnet"
+minWalletBalance = 10_000_000
+minChannelBalance = 10_000_000
+
+# Maximal 0-conf amount *per swap*
+maxZeroConfAmount = 100_000
+
+# Maximal 0-conf amount for the currency
+maxZeroConfRisk = 1_000_000
+
+# Onchain wallet provider
+# Options: "core" or "lnd"
+# Defaults to "lnd"
+# preferredWallet = "core"
+
+# Can be set to alert about the balance of an unused wallet being more than a certain threshold
+# maxUnusedWalletBalance = 100_000
+
+# Public keys of Lightning nodes on the network of the currency
+# to which we cannot route reliably
+noRoute = [""]
+
+    [currencies.chain]
+    host = "127.0.0.1"
+    port = 38_332
+
+    # The requests to Bitcoin Core like clients can be authenticated with cookie files or user/password
+    # If both are configured, cookie files are preferred
+    cookie = ""
+
+    user = "raspibolt"
+    password = "testest"
+
+    # When there is more than one wallet loaded, the name of the wallet that should be used needs to be specified
+    # wallet = "boltz"
+
+    # Optional API endpoint of a MempoolSpace instance running on the chain of the configured client
+    mempoolSpace = "https://mempool.space/signet/api"
+
+    # The ZMQ endpoints for a chain can be configured here
+    # If they are not set, those endpoints are fetched via the "getzmqnotifications" RPC method of the node
+    zmqpubrawtx = "tcp://0.0.0.0:23333"
+    zmqpubrawblock = "tcp://0.0.0.0:23332"
+
+    # hashblock is not required and should only be used as fallback in case rawblock is not available
+    # zmqpubhashblock = ""
+
+    [currencies.lnd]
+    host = "127.0.0.1"
+    port = 13_009
+    certpath = "/home/boltz/.lnd/tls.cert"
+    macaroonpath = "/home/boltz/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+    maxPaymentFeeRatio = 0.03
+
